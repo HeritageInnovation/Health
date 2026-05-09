@@ -12,6 +12,8 @@ not a doctor, insurer, broker, or licensed insurance intermediary.
 - Safety-first triage with deterministic emergency red-flag handling before any future AI orchestration.
 - Department and first-step routing with safe wording such as "possible department" and "if referred".
 - Insurance guidance at coverage-category level only, with licensed-adviser escalation.
+- Lightweight virtual AI adviser state UI for idle, listening, analyzing, explaining, reassurance, and emergency states.
+- Anonymous-first entry points with account-upgrade and memory-consent copy.
 - Audit trail preview for classification, safety decision, disclaimer, and handoff logic.
 
 ## Safety Rules

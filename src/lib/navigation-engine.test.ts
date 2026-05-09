@@ -29,11 +29,21 @@ describe("navigation engine", () => {
 
   it("keeps insurance planning at category level for self-employed users", () => {
     const result = analyzeIntake("insurance", "我 35 歲，自僱，住香港，沒有僱主醫療，應該買咩保險？");
+    const output = [
+      result.nextAction,
+      result.careRoute,
+      ...result.possibleDepartments,
+      ...result.insuranceCategories,
+      ...result.decisionChecklist,
+    ].join(" ");
 
     expect(result.urgency.level).toBe(4);
     expect(result.insuranceCategories.join(" ")).toContain("自願醫保");
+    expect(result.decisionChecklist.join(" ")).toContain("等候期");
+    expect(result.memoryCandidates.join(" ")).toContain("僱主醫療福利");
     expect(result.escalation).toContain("持牌保險顧問");
     expect(result.disclaimer).toContain("不會保證承保");
+    expect(output).not.toMatch(/AIA|友邦|Bupa|AXA|安盛|Cigna|Prudential|保誠|Manulife|宏利/i);
   });
 
   it("treats policy explanation as claims and wording review, not an approval decision", () => {
@@ -41,6 +51,15 @@ describe("navigation engine", () => {
 
     expect(result.classification).toContain("索償");
     expect(result.insuranceCategories).toContain("不保事項 / Exclusions");
+    expect(result.decisionChecklist.join(" ")).toContain("補交文件");
     expect(result.escalation).toContain("索償爭議");
+  });
+
+  it("does not propose saving memory during emergency routing", () => {
+    const result = analyzeIntake("medical", "突然劇烈頭痛，又失去知覺");
+
+    expect(result.urgency.level).toBe(1);
+    expect(result.memoryCandidates).toHaveLength(0);
+    expect(result.decisionChecklist.join(" ")).toContain("立即致電 999");
   });
 });

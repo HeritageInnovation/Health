@@ -16,6 +16,8 @@ export type Recommendation = {
   possibleDepartments: string[];
   insuranceCategories: string[];
   questions: string[];
+  decisionChecklist: string[];
+  memoryCandidates: string[];
   escalation: string;
   disclaimer: string;
   audit: string[];
@@ -204,6 +206,12 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
       possibleDepartments: ["急症室 / A&E", "之後按評估可能轉介相關專科"],
       insuranceCategories: ["先求醫，保險和索償問題稍後再處理"],
       questions: [],
+      decisionChecklist: [
+        "立即致電 999 或前往最近急症室。",
+        "如情況危急，不要等待保險確認或 AI 追問。",
+        "安全後才整理保單、收據及索償資料。",
+      ],
+      memoryCandidates: [],
       escalation: "如有生命危險、嚴重痛楚、呼吸困難、中風徵兆、自傷風險或症狀快速惡化，請立即致電 999。",
       disclaimer: medicalDisclaimer(),
       audit: [
@@ -257,6 +265,17 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
       "有沒有發燒、呼吸困難、劇痛、失去知覺或其他危險徵兆？",
       "你偏好公營、私營，還是先按可及性決定？",
     ],
+    decisionChecklist: [
+      "記錄症狀開始時間、變化和嚴重程度。",
+      "列出已服用藥物、過敏史和既有病歷。",
+      "帶同過往檢查報告、相片或體溫紀錄。",
+      "如果出現新的危險徵兆，立即改為急症處理。",
+    ],
+    memoryCandidates: [
+      "語言偏好：繁體中文 / English",
+      "公營、私營或混合醫療偏好",
+      "常用地區：港島、九龍或新界",
+    ],
     escalation: "如出現危險徵兆、症狀快速惡化、嬰幼兒嚴重異常或精神健康危機，請立即求急症服務。",
     disclaimer: medicalDisclaimer(),
     audit: [
@@ -293,6 +312,18 @@ function buildInsuranceRecommendation(text: string, matches: typeof insuranceSig
       "你較偏好私家醫院、公營服務，還是兩者混合？",
       "有沒有受養人、按揭、既有病歷或計劃懷孕？",
       "每月或每年預算大約是多少？",
+    ],
+    decisionChecklist: [
+      "每年保障額、病房級別和醫院網絡限制。",
+      "自付額、共同保險、等候期和續保條款。",
+      "既有病症、不保事項和核保要求。",
+      "香港以外保障、預先批核和索償文件要求。",
+    ],
+    memoryCandidates: [
+      "是否已有僱主醫療福利",
+      "保險預算範圍",
+      "住院、門診、牙科、產科、危疾或旅遊保障需要",
+      "本地香港或國際保障偏好",
     ],
     escalation: "購買前應諮詢持牌保險顧問，並細閱保單條款、不保事項、等候期、核保要求及索償流程。",
     disclaimer: insuranceDisclaimer(),
@@ -332,6 +363,17 @@ function buildPolicyRecommendation(text: string): Recommendation {
       "服務是在香港還是海外發生？",
       "是否涉及既有病症、等候期、網絡限制或預先批核？",
       "你希望輸出一份查問保險公司的問題清單嗎？",
+    ],
+    decisionChecklist: [
+      "核對保障表、保單條款、不保事項和等候期。",
+      "整理醫療收據、診斷證明、轉介信和保險公司回覆。",
+      "確認索償時限、所需表格和補交文件方式。",
+      "如涉及爭議或高額費用，交由持牌顧問或合規人員覆核。",
+    ],
+    memoryCandidates: [
+      "保單類型和保障範圍摘要",
+      "索償流程偏好和常用文件清單",
+      "是否需要持牌顧問 handoff",
     ],
     escalation: "如涉及索償爭議、高額醫療費或產品購買決定，應交由持牌顧問或合規人員覆核。",
     disclaimer: insuranceDisclaimer(),
