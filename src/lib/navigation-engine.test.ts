@@ -7,6 +7,8 @@ describe("navigation engine", () => {
 
     expect(result.urgency.level).toBe(1);
     expect(result.nextAction).toContain("立即");
+    expect(`${result.urgency.summary} ${result.escalation}`).toContain("999");
+    expect(`${result.careRoute} ${result.possibleDepartments.join(" ")}`).toContain("A&E");
     expect(result.questions).toHaveLength(0);
     expect(result.possibleDepartments).toContain("急症室 / A&E");
   });

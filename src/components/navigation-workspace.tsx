@@ -6,24 +6,25 @@ import {
   ArrowRight,
   Bot,
   ClipboardCheck,
-  FileText,
   HeartPulse,
   Hospital,
   Languages,
   MessageSquareText,
   Mic,
-  ShieldAlert,
   ShieldCheck,
   Stethoscope,
   UserRoundCheck,
   type LucideIcon,
 } from "lucide-react";
-import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { User } from "@supabase/supabase-js";
 import { AuthPanel } from "@/components/auth/auth-panel";
 import { UserMenu } from "@/components/auth/user-menu";
 import { MemoryConsentCard } from "@/components/memory/memory-consent-card";
+import {
+  DoctorAvatar,
+  getDoctorAvatarState,
+} from "@/components/virtual-doctor-avatar";
 import { analyzeIntake, type IntakeMode, type Recommendation } from "@/lib/navigation-engine";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -35,115 +36,96 @@ import {
   saveConversationSession,
   saveRecommendation,
   saveUserPreference,
+  type ConversationMode,
   type Profile,
 } from "@/lib/user-memory";
 import styles from "./navigation-workspace.module.css";
 
-type AvatarState = "idle" | "listening" | "thinking" | "speaking" | "emergency" | "reassurance";
+type ActionId = "symptom" | "department" | "insurance";
+type CarePreference = "public" | "private";
 
-const examples: Array<{ label: string; prompt: string; mode: IntakeMode }> = [
+const actionCards: Array<{
+  id: ActionId;
+  mode: IntakeMode;
+  titleZh: string;
+  titleEn: string;
+  bodyZh: string;
+  accent: "teal" | "blue" | "violet";
+  icon: LucideIcon;
+}> = [
   {
-    label: "胸口痛 + 氣促",
-    prompt: "我胸口痛，又覺得氣促，應該去邊度？",
+    id: "symptom",
     mode: "medical",
+    titleZh: "症狀評估",
+    titleEn: "Symptom Check",
+    bodyZh: "評估症狀嚴重程度\n並提供初步建議",
+    accent: "teal",
+    icon: Stethoscope,
   },
   {
-    label: "小朋友發燒出疹",
-    prompt: "小朋友發燒又出疹兩日，應該睇咩科？",
+    id: "department",
     mode: "medical",
+    titleZh: "搵科別",
+    titleEn: "Find Department",
+    bodyZh: "根據你的情況\n推薦合適科別",
+    accent: "blue",
+    icon: Hospital,
   },
   {
-    label: "自僱保險",
-    prompt: "我 35 歲，自僱，住香港，沒有僱主醫療，應該買咩保險？",
+    id: "insurance",
     mode: "insurance",
-  },
-  {
-    label: "保單條款",
-    prompt: "我想理解住院保單的不保事項、等候期和索償流程。",
-    mode: "policy",
+    titleZh: "保險建議",
+    titleEn: "Insurance Guidance",
+    bodyZh: "了解保障範圍及\n索償流程建議",
+    accent: "violet",
+    icon: ShieldCheck,
   },
 ];
 
-const modeCopy: Record<IntakeMode, { label: string; description: string; icon: LucideIcon }> = {
-  medical: {
-    label: "醫療導航",
-    description: "症狀、緊急程度、第一步就醫點",
-    icon: Stethoscope,
-  },
-  insurance: {
-    label: "保險規劃",
-    description: "保障類型、比較準則、顧問交接",
-    icon: ShieldCheck,
-  },
-  policy: {
-    label: "保單解釋",
-    description: "索償、條款、不保事項、等候期",
-    icon: FileText,
-  },
+const examples: Record<ActionId, string> = {
+  symptom: "例如：頭痛兩日、發燒、保險索償問題...",
+  department: "例如：小朋友發燒出疹，應該睇咩科？",
+  insurance: "例如：自僱，沒有僱主醫療，想了解保障類型...",
 };
 
-const avatarCopy: Record<AvatarState, { label: string; message: string }> = {
-  idle: {
-    label: "Idle",
-    message: "我會先幫你分辨風險，再整理下一步。",
-  },
-  listening: {
-    label: "Listening",
-    message: "請描述症狀、時間、嚴重程度或保險需要。",
-  },
-  thinking: {
-    label: "Analyzing",
-    message: "正在分析症狀、緊急程度和合適路徑。",
-  },
-  speaking: {
-    label: "Explaining",
-    message: "以下是導航建議，不是診斷或保單銷售建議。",
-  },
-  emergency: {
-    label: "Emergency",
-    message: "先處理安全：請立即求急症服務。",
-  },
-  reassurance: {
-    label: "Step-by-step",
-    message: "我會一步一步幫你整理比較準則。",
-  },
-};
+const navItems = [
+  { label: "首頁", icon: HeartPulse, href: "#home" },
+  { label: "對話記錄", icon: MessageSquareText, href: "#memory" },
+  { label: "健康資訊", icon: Activity, href: "#health-info" },
+  { label: "保險知識", icon: ShieldCheck, href: "#insurance-info" },
+  { label: "我的", icon: UserRoundCheck, href: "#account" },
+];
+
+const featureChips = [
+  { zh: "保障私隱", en: "Privacy Protected", icon: ShieldCheck },
+  { zh: "AI 專業分析", en: "AI Powered", icon: Bot },
+  { zh: "24/7 全天候支援", en: "24/7 Support", icon: Activity },
+];
 
 const routeRows = [
-  ["急症室", "胸痛、嚴重氣促、中風徵兆、大量出血、自傷即時風險"],
-  ["即日求醫", "高燒伴嚴重症狀、急性眼痛、脫水、感染惡化"],
-  ["普通科 / 家庭醫生", "輕微但持續症狀、慢性病覆診、初步評估"],
-  ["持牌保險顧問", "購買保單、高額保障、複雜核保或索償爭議"],
+  ["急症室 / A&E", "胸痛、呼吸困難、中風徵兆、大量出血、自傷即時風險"],
+  ["普通科 / GP", "非緊急但持續症狀、初步檢查、轉介建議"],
+  ["相關專科 / Specialist", "按醫生評估及症狀範圍，再考慮眼科、皮膚科、兒科等"],
 ];
 
 const coverageRows = [
-  "VHIS / 個人住院醫療",
-  "高端醫療",
-  "門診",
-  "危疾",
-  "人壽",
-  "意外",
-  "牙科",
-  "產科",
-  "旅遊",
-];
-
-const pipelineSteps = [
-  "意圖分類",
-  "危險徵兆偵測",
-  "必要追問",
-  "部門或保障配對",
-  "安全檢查",
-  "人工升級",
+  "住院醫療 / Hospital",
+  "門診 / Outpatient",
+  "危疾 / Critical illness",
+  "意外 / Accident",
+  "牙科 / Dental",
+  "旅遊 / Travel",
 ];
 
 export function NavigationWorkspace() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
-  const [mode, setMode] = useState<IntakeMode>("medical");
-  const [question, setQuestion] = useState(examples[0].prompt);
-  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [activeAction, setActiveAction] = useState<ActionId>("symptom");
+  const [carePreference, setCarePreference] = useState<CarePreference>("public");
+  const [input, setInput] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [result, setResult] = useState<Recommendation | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authReady, setAuthReady] = useState(() => !supabase);
@@ -153,10 +135,21 @@ export function NavigationWorkspace() {
   const [memoryStatus, setMemoryStatus] = useState<string | null>(null);
   const [isSavingMemory, startSavingMemory] = useTransition();
 
-  const recommendation = useMemo(() => analyzeIntake(mode, question), [mode, question]);
+  const activeCard = actionCards.find((card) => card.id === activeAction) ?? actionCards[0];
+  const avatarState = getDoctorAvatarState({
+    result,
+    isSubmitting,
+    input: result ? "" : input,
+  });
 
-  const syncUser = useCallback(
-    async (nextUser: User | null) => {
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function syncUser(nextUser: User | null) {
       setUser(nextUser);
       setSaveHistory(Boolean(nextUser));
 
@@ -167,24 +160,19 @@ export function NavigationWorkspace() {
 
       try {
         const nextProfile = await getOrCreateProfile(nextUser, supabase);
-        setProfile(nextProfile);
+        if (isMounted) {
+          setProfile(nextProfile);
+        }
       } catch (error) {
-        setMemoryStatus(
-          error instanceof Error
-            ? `未能載入用戶資料 / Could not load profile: ${error.message}`
-            : "未能載入用戶資料 / Could not load profile.",
-        );
+        if (isMounted) {
+          setMemoryStatus(
+            error instanceof Error
+              ? `未能載入用戶資料 / Could not load profile: ${error.message}`
+              : "未能載入用戶資料 / Could not load profile.",
+          );
+        }
       }
-    },
-    [supabase],
-  );
-
-  useEffect(() => {
-    if (!supabase) {
-      return;
     }
-
-    let isMounted = true;
 
     supabase.auth.getSession().then(async ({ data }) => {
       if (!isMounted) {
@@ -205,40 +193,44 @@ export function NavigationWorkspace() {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase, syncUser]);
+  }, [supabase]);
 
-  useEffect(() => {
-    if (!isAnalyzing) return;
-
-    const timeoutId = window.setTimeout(() => setIsAnalyzing(false), 460);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [isAnalyzing, mode, question]);
-
-  const handleModeSelect = (nextMode: IntakeMode) => {
-    setMode(nextMode);
-    setIsAnalyzing(true);
+  function handleActionSelect(actionId: ActionId) {
+    setActiveAction(actionId);
+    setResult(null);
     setSavedSessionId(null);
     setMemoryStatus(null);
-  };
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  }
 
-  const handleQuestionChange = (nextQuestion: string) => {
-    setQuestion(nextQuestion);
-    setIsAnalyzing(nextQuestion.trim().length > 0);
+  function handleInputChange(nextInput: string) {
+    setInput(nextInput);
+    setResult(null);
     setSavedSessionId(null);
     setMemoryStatus(null);
-  };
+  }
 
-  const handleExampleSelect = (example: (typeof examples)[number]) => {
-    setMode(example.mode);
-    setQuestion(example.prompt);
-    setIsRecording(false);
-    setIsAnalyzing(true);
+  function handleSubmit() {
+    const trimmedInput = input.trim();
+
+    if (!trimmedInput) {
+      setMemoryStatus("請先描述症狀或保險問題。Please describe your symptom or insurance question first.");
+      inputRef.current?.focus();
+      return;
+    }
+
+    setIsSubmitting(true);
+    setResult(null);
     setSavedSessionId(null);
     setMemoryStatus(null);
-  };
 
-  const handleSignOut = () => {
+    window.setTimeout(() => {
+      setResult(analyzeIntake(activeCard.mode, trimmedInput));
+      setIsSubmitting(false);
+    }, 520);
+  }
+
+  function handleSignOut() {
     if (!supabase) {
       return;
     }
@@ -251,9 +243,9 @@ export function NavigationWorkspace() {
       setSavedSessionId(null);
       setMemoryStatus("已登出。Signed out.");
     });
-  };
+  }
 
-  const handleClearSession = () => {
+  function handleClearSession() {
     if (!supabase || !user || !savedSessionId) {
       setSavedSessionId(null);
       setMemoryStatus("已清除本機狀態。Local session state cleared.");
@@ -273,9 +265,14 @@ export function NavigationWorkspace() {
         );
       }
     });
-  };
+  }
 
-  const handleSaveRecommendation = () => {
+  function handleSaveRecommendation() {
+    if (!result) {
+      setMemoryStatus("未有建議可保存。There is no recommendation to save yet.");
+      return;
+    }
+
     if (!supabase || !user) {
       setMemoryStatus("請先匿名開始或登入，才可保存。Start anonymously or log in before saving.");
       return;
@@ -288,29 +285,32 @@ export function NavigationWorkspace() {
 
     startSavingMemory(async () => {
       try {
+        const sessionMode: ConversationMode =
+          activeAction === "department" ? "department" : mapRecommendationMode(result.mode);
         const session = await saveConversationSession(
           user.id,
-          mapRecommendationMode(recommendation.mode),
-          question.slice(0, 72),
+          sessionMode,
+          input.slice(0, 72),
           "zh-Hant",
           supabase,
         );
-        const safetyLevel = getSafetyLevel(recommendation);
+        const safetyLevel = getSafetyLevel(result);
 
         await Promise.all([
-          saveConversationMessage(session.id, user.id, "user", question, safetyLevel, supabase),
+          saveConversationMessage(session.id, user.id, "user", input, safetyLevel, supabase),
           saveConversationMessage(
             session.id,
             user.id,
             "assistant",
-            `${recommendation.classification}\n${recommendation.nextAction}`,
+            `${result.classification}\n${result.nextAction}`,
             safetyLevel,
             supabase,
           ),
+          saveUserPreference(user.id, "preferred_language", "zh-Hant", "explicit_user_choice", supabase),
           saveUserPreference(
             user.id,
-            "preferred_language",
-            "zh-Hant",
+            "care_preference",
+            carePreference,
             "explicit_user_choice",
             supabase,
           ),
@@ -328,7 +328,7 @@ export function NavigationWorkspace() {
             }),
         ]);
 
-        await saveRecommendation(user.id, session.id, recommendation, supabase);
+        await saveRecommendation(user.id, session.id, result, supabase);
         setSavedSessionId(session.id);
         setMemoryStatus("已保存今次建議。This recommendation has been saved.");
       } catch (error) {
@@ -339,330 +339,296 @@ export function NavigationWorkspace() {
         );
       }
     });
-  };
+  }
 
-  const handleDeclineMemory = () => {
-    setMemoryStatus("今次不會保存。This recommendation will not be saved.");
-  };
-
-  const avatarState = getAvatarState({
-    isAnalyzing,
-    isFocused,
-    isRecording,
-    recommendation,
-  });
+  function handleDeclineMemory() {
+    setMemoryStatus("今次不要保存。This recommendation will not be saved.");
+  }
 
   return (
-    <main className={styles.shell}>
-      <header className={styles.topbar}>
-        <a className={styles.brand} href="#assistant" aria-label="香港 AI 醫療及保險導航">
-          <span className={styles.brandMark}>
-            <HeartPulse size={21} aria-hidden="true" />
-          </span>
-          <span>
-            香港 AI 醫療及保險導航
-            <small>AI Healthcare Navigation</small>
-          </span>
-        </a>
-        <nav className={styles.nav} aria-label="Primary">
-          <a href="#care-routes">醫療路徑</a>
-          <a href="#coverage">保險分類</a>
-          <a href="#memory">匿名記憶</a>
-          <a href="#safety">安全規則</a>
-        </nav>
-        <div className={styles.topbarActions}>
-          <button className={styles.langButton} type="button" aria-label="Language toggle">
-            <Languages size={17} aria-hidden="true" />
-            繁 / EN
-          </button>
-          <UserMenu
-            user={user}
-            profile={profile}
-            saveHistory={saveHistory}
-            hasSavedSession={Boolean(savedSessionId)}
-            onToggleSaveHistory={setSaveHistory}
-            onSignOut={handleSignOut}
-            onClearSession={handleClearSession}
-            onUpgradeAccount={() => setShowUpgrade(true)}
-          />
-        </div>
-      </header>
-
-      <section className={styles.hero} id="assistant">
-        <div className={styles.heroCopy}>
-          <h1>香港 Virtual AI Doctor</h1>
-          <p>
-            以安全分流為先的醫療及保險導航。先判斷緊急程度，再整理第一步就醫點、可能相關部門和可考慮保障。
-          </p>
-          <div className={styles.heroActions} aria-label="Primary actions">
-            <a href="#workspace" className={styles.primaryAction}>
-              開始導航
-              <ArrowRight size={17} aria-hidden="true" />
-            </a>
-            <a href="#safety" className={styles.secondaryAction}>
-              查看安全規則
-            </a>
-          </div>
-          <div className={styles.safetyStrip} id="safety">
-            <AlertTriangle size={18} aria-hidden="true" />
-            <span>如有胸痛、嚴重氣促、中風徵兆、昏迷、大量出血或自傷即時風險，請立即致電 999 或前往最近急症室。</span>
-          </div>
+    <main className={styles.shell} id="home">
+      <section
+        className={`${styles.phone} ${result || isSubmitting ? styles.phoneWithResult : ""}`}
+        aria-label="智健導航 mobile app preview"
+      >
+        <div className={styles.statusBar} aria-hidden="true">
+          <span>9:41</span>
+          <span className={styles.statusIcons}>●●●  Wi-Fi  ▰</span>
         </div>
 
-        <AdviserStage
-          avatarState={avatarState}
-          mode={mode}
-          recommendation={recommendation}
-          isRecording={isRecording}
-          onToggleRecording={() => setIsRecording((current) => !current)}
-        />
-      </section>
+        <header className={styles.topbar}>
+          <a className={styles.brand} href="#home" aria-label="智健導航 AI Healthcare Guide">
+            <span className={styles.brandMark}>
+              <HeartPulse size={27} aria-hidden="true" />
+            </span>
+            <span>
+              <strong>智健導航</strong>
+              <small>AI Healthcare Guide</small>
+            </span>
+          </a>
 
-      <section className={styles.authGrid} id="memory" aria-label="Login and anonymous use">
-        {!user || showUpgrade ? (
-          <AuthPanel
-            supabase={supabase}
-            user={user}
-            variant={showUpgrade ? "upgrade" : "start"}
-            onUserReady={setUser}
-            onProfileReady={(nextProfile) => {
-              setProfile(nextProfile);
-              setSaveHistory(true);
-              setShowUpgrade(false);
-            }}
-          />
-        ) : null}
-
-        <div className={styles.authStateCard}>
-          <p className={styles.panelKicker}>登入狀態 / Auth state</p>
-          <h2>
-            {user
-              ? profile?.is_anonymous || user.is_anonymous
-                ? "匿名模式已開啟 / Anonymous mode is on"
-                : "已登入並可保存 / Logged in and ready to save"
-              : "未登入也可先使用 / You can use it before login"}
-          </h2>
-          <span>
-            記憶狀態：{user && saveHistory ? "同意後可保存" : "不會保存"} / Memory:{" "}
-            {user && saveHistory ? "save after consent" : "off"}
-          </span>
-          {profile?.is_anonymous || user?.is_anonymous ? (
-            <button type="button" onClick={() => setShowUpgrade(true)}>
-              保存紀錄並建立帳戶 / Save history and create account
+          <div className={styles.topControls} aria-label="Preferences">
+            <button
+              className={styles.controlPill}
+              type="button"
+              aria-pressed={carePreference === "public"}
+              onClick={() => setCarePreference(carePreference === "public" ? "private" : "public")}
+            >
+              <Hospital size={20} aria-hidden="true" />
+              <span>
+                公立 / 私家
+                <small>Public / Private</small>
+              </span>
             </button>
-          ) : null}
-          <small>
-            {authReady
-              ? "每次保存前都會詢問，不會自動保存敏感病歷。You will be asked before saving sensitive context."
-              : "正在確認登入狀態... Checking auth state..."}
-          </small>
-        </div>
-      </section>
+            <button className={styles.controlPill} type="button">
+              <Languages size={20} aria-hidden="true" />
+              <span>
+                繁中
+                <small>English</small>
+              </span>
+            </button>
+          </div>
+        </header>
 
-      <section className={styles.workspace} id="workspace" aria-label="AI navigation workspace">
-        <div className={styles.intakePanel}>
-          <div className={styles.panelHeader}>
-            <div>
-              <p className={styles.panelKicker}>輸入 / Question Intake</p>
-              <h2>描述你的情況</h2>
+        <section className={styles.hero} aria-label="Virtual AI doctor">
+          <div className={styles.heroCopy}>
+            <h1>
+              你好，
+              <span>我係你的</span>
+              <span>AI 醫療顧問</span>
+            </h1>
+            <p>Your AI healthcare guide</p>
+            <div className={styles.trustBadge}>
+              <ShieldCheck size={18} aria-hidden="true" />
+              <span>
+                值得信賴・專業・私隱保障
+                <small>Trusted・Professional・Private</small>
+              </span>
             </div>
-            <MessageSquareText size={22} aria-hidden="true" />
+          </div>
+          <DoctorAvatar state={avatarState} className={styles.heroAvatar} showSafetyLabel />
+        </section>
+
+        <section className={styles.chatCard} aria-label="Question input">
+          <div className={styles.inputHeading}>
+            <div>
+              <h2>請描述你的症狀或保險問題</h2>
+              <p>Describe your symptom or insurance question</p>
+            </div>
           </div>
 
-          <div className={styles.modeGrid} role="tablist" aria-label="Choose workflow">
-            {(Object.keys(modeCopy) as IntakeMode[]).map((key) => {
-              const Icon = modeCopy[key].icon;
+          <div className={styles.inputShell}>
+            <textarea
+              ref={inputRef}
+              className={styles.textarea}
+              value={input}
+              rows={2}
+              placeholder={examples[activeAction]}
+              onChange={(event) => handleInputChange(event.target.value)}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                  handleSubmit();
+                }
+              }}
+            />
+            <button
+              className={isRecording ? styles.micActive : styles.micButton}
+              type="button"
+              aria-pressed={isRecording}
+              aria-label={isRecording ? "停止語音輸入" : "開始語音輸入"}
+              onClick={() => setIsRecording((current) => !current)}
+            >
+              <Mic size={22} aria-hidden="true" />
+            </button>
+            <button
+              className={styles.sendButton}
+              type="button"
+              aria-label="提交問題"
+              disabled={isSubmitting}
+              onClick={handleSubmit}
+            >
+              <ArrowRight size={25} aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className={styles.featureChips}>
+            {featureChips.map((chip) => {
+              const Icon = chip.icon;
               return (
-                <button
-                  className={key === mode ? styles.modeActive : styles.modeButton}
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={key === mode}
-                  onClick={() => handleModeSelect(key)}
-                >
+                <span key={chip.zh}>
                   <Icon size={18} aria-hidden="true" />
-                  <span>{modeCopy[key].label}</span>
-                </button>
+                  <strong>{chip.zh}</strong>
+                  <small>{chip.en}</small>
+                </span>
               );
             })}
           </div>
+        </section>
 
-          <label className={styles.inputLabel} htmlFor="question">
-            自然語言輸入
-          </label>
-          <div className={styles.inputShell}>
-            <textarea
-              id="question"
-              className={styles.textarea}
-              value={question}
-              onBlur={() => setIsFocused(false)}
-              onChange={(event) => handleQuestionChange(event.target.value)}
-              onFocus={() => setIsFocused(true)}
-              rows={7}
-            />
-            <button
-              type="button"
-              className={isRecording ? styles.micActive : styles.micButton}
-              onClick={() => setIsRecording((current) => !current)}
-              aria-pressed={isRecording}
-            >
-              <Mic size={18} aria-hidden="true" />
-              {isRecording ? "聆聽中" : "語音"}
-            </button>
-          </div>
+        <section className={styles.actionGrid} aria-label="Main actions">
+          {actionCards.map((card) => {
+            const Icon = card.icon;
+            const isActive = activeAction === card.id;
 
-          <div className={styles.exampleGrid} aria-label="Example prompts">
-            {examples.map((example) => (
+            return (
               <button
+                className={`${styles.actionCard} ${styles[card.accent]} ${
+                  isActive ? styles.actionCardActive : ""
+                }`}
+                key={card.id}
                 type="button"
-                key={example.label}
-                className={styles.exampleButton}
-                onClick={() => handleExampleSelect(example)}
+                aria-pressed={isActive}
+                onClick={() => handleActionSelect(card.id)}
               >
-                {example.label}
+                <span className={styles.actionIcon}>
+                  <Icon size={34} aria-hidden="true" />
+                </span>
+                <strong>{card.titleZh}</strong>
+                <small>{card.titleEn}</small>
+                <span>{card.bodyZh}</span>
+                <i aria-hidden="true">
+                  <ArrowRight size={20} />
+                </i>
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </section>
 
-          <div className={styles.workflowNote}>
-            <Activity size={18} aria-hidden="true" />
-            <span>{modeCopy[mode].description}</span>
-          </div>
+        {(isSubmitting || result) && (
+          <ResultCard
+            result={result}
+            isSubmitting={isSubmitting}
+            canSave={Boolean(user && saveHistory)}
+            isSaved={Boolean(savedSessionId)}
+            isSaving={isSavingMemory}
+            memoryStatus={memoryStatus}
+            onSave={handleSaveRecommendation}
+            onDecline={handleDeclineMemory}
+          />
+        )}
 
-          <div className={styles.pipeline} aria-label="AI workflow preview">
-            {pipelineSteps.map((step, index) => (
-              <span className={index < activePipelineIndex(recommendation) ? styles.pipelineDone : styles.pipelineStep} key={step}>
-                {step}
-              </span>
-            ))}
-          </div>
-        </div>
+        <a className={styles.emergencyBar} href="tel:999" aria-label="Call 999 for emergency">
+          <AlertTriangle size={26} aria-hidden="true" />
+          <span>
+            如有胸痛、呼吸困難或其他緊急情況，請立即前往急症室
+            <small>For emergencies, go to A&E immediately.</small>
+          </span>
+          <ArrowRight size={21} aria-hidden="true" />
+        </a>
 
-        <RecommendationPanel
-          recommendation={recommendation}
-          canSave={Boolean(user && saveHistory)}
-          isSaved={Boolean(savedSessionId)}
-          isSaving={isSavingMemory}
-          memoryStatus={memoryStatus}
-          onSave={handleSaveRecommendation}
-          onDecline={handleDeclineMemory}
-        />
+        <nav className={styles.bottomNav} aria-label="Bottom navigation">
+          {navItems.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <a className={index === 0 ? styles.navActive : ""} href={item.href} key={item.label}>
+                <Icon size={23} aria-hidden="true" />
+                <span>{item.label}</span>
+              </a>
+            );
+          })}
+        </nav>
       </section>
 
-      <section className={styles.referenceGrid}>
-        <div className={styles.referencePanel} id="care-routes">
-          <div className={styles.sectionTitle}>
-            <Hospital size={20} aria-hidden="true" />
-            <h2>香港常見醫療路徑</h2>
-          </div>
-          <div className={styles.routeList}>
-            {routeRows.map(([title, body]) => (
-              <div className={styles.routeRow} key={title}>
-                <strong>{title}</strong>
-                <span>{body}</span>
-              </div>
-            ))}
-          </div>
+      <section className={styles.accountSection} id="account" aria-label="Login and memory settings">
+        <div className={styles.accountHeader}>
+          <p>登入及記憶 / Login and Memory</p>
+          <h2>匿名開始，之後再選擇保存</h2>
+          <span>
+            Start anonymously, upgrade later, and save health navigation history only with consent.
+          </span>
         </div>
 
-        <div className={styles.referencePanel} id="coverage">
-          <div className={styles.sectionTitle}>
-            <ShieldCheck size={20} aria-hidden="true" />
-            <h2>可導航的保障類型</h2>
-          </div>
-          <div className={styles.coverageGrid}>
-            {coverageRows.map((item) => (
-              <span key={item}>{item}</span>
-            ))}
+        <div className={styles.authGrid} id="memory">
+          {!user || showUpgrade ? (
+            <AuthPanel
+              supabase={supabase}
+              user={user}
+              variant={showUpgrade ? "upgrade" : "start"}
+              onUserReady={setUser}
+              onProfileReady={(nextProfile) => {
+                setProfile(nextProfile);
+                setSaveHistory(true);
+                setShowUpgrade(false);
+              }}
+            />
+          ) : (
+            <UserMenu
+              user={user}
+              profile={profile}
+              saveHistory={saveHistory}
+              hasSavedSession={Boolean(savedSessionId)}
+              onToggleSaveHistory={setSaveHistory}
+              onSignOut={handleSignOut}
+              onClearSession={handleClearSession}
+              onUpgradeAccount={() => setShowUpgrade(true)}
+            />
+          )}
+
+          <div className={styles.authStateCard}>
+            <p className={styles.panelKicker}>登入狀態 / Auth state</p>
+            <h2>
+              {user
+                ? profile?.is_anonymous || user.is_anonymous
+                  ? "匿名模式已開啟 / Anonymous mode is on"
+                  : "已登入並可保存 / Logged in and ready to save"
+                : "未登入也可先使用 / You can use it before login"}
+            </h2>
+            <span>
+              記憶狀態：{user && saveHistory ? "同意後可保存" : "不會保存"} / Memory:{" "}
+              {user && saveHistory ? "save after consent" : "off"}
+            </span>
+            {profile?.is_anonymous || user?.is_anonymous ? (
+              <button type="button" onClick={() => setShowUpgrade(true)}>
+                保存紀錄並建立帳戶 / Save history and create account
+              </button>
+            ) : null}
+            <small>
+              {authReady
+                ? "每次保存前都會詢問，不會自動保存敏感病歷。You will be asked before saving sensitive context."
+                : "正在確認登入狀態... Checking auth state..."}
+            </small>
           </div>
         </div>
+      </section>
 
+      <section className={styles.referenceGrid} aria-label="Safety references">
+        <ReferencePanel
+          id="health-info"
+          icon={Hospital}
+          title="香港醫療路徑"
+          subtitle="Hong Kong care routing"
+          rows={routeRows}
+        />
+        <ReferencePanel
+          id="insurance-info"
+          icon={ShieldCheck}
+          title="保障分類"
+          subtitle="Coverage categories"
+          tags={coverageRows}
+        />
         <div className={styles.referencePanel}>
           <div className={styles.sectionTitle}>
             <ClipboardCheck size={20} aria-hidden="true" />
-            <h2>審計紀錄及交接</h2>
+            <div>
+              <h2>安全邊界</h2>
+              <p>Safety boundaries</p>
+            </div>
           </div>
           <p className={styles.referenceCopy}>
-            MVP 只會在用戶同意後保存問題、分類、建議、免責提示及升級決定，方便安全覆核、人工跟進及日後合規審計。
+            本服務只提供導航、科別方向及保險類別教育，不作診斷、不處方、不推薦指定保險公司或產品。
           </p>
-          <div className={styles.handoff}>
-            <UserRoundCheck size={18} aria-hidden="true" />
-            <span>醫療危險徵兆、精神健康危機、複雜核保、高價值購買和索償爭議都應交由真人處理。</span>
-          </div>
+          <p className={styles.referenceCopy}>
+            Product purchase decisions require a future licensed insurance adviser workflow.
+          </p>
         </div>
       </section>
     </main>
   );
 }
 
-function AdviserStage({
-  avatarState,
-  mode,
-  recommendation,
-  isRecording,
-  onToggleRecording,
-}: {
-  avatarState: AvatarState;
-  mode: IntakeMode;
-  recommendation: Recommendation;
-  isRecording: boolean;
-  onToggleRecording: () => void;
-}) {
-  const copy = avatarCopy[avatarState];
-
-  return (
-    <aside className={`${styles.adviserStage} ${styles[`${avatarState}Stage`]}`} aria-label="Virtual AI adviser">
-      <div className={styles.adviserTopline}>
-        <span>
-          <Bot size={16} aria-hidden="true" />
-          AI 醫療導航，不取代醫生診斷
-        </span>
-        <strong>{copy.label}</strong>
-      </div>
-
-      <div className={styles.avatarFrame}>
-        <div className={styles.avatarHalo} />
-        <Image
-          className={styles.avatarImage}
-          src="/ai-doctor-avatar.svg"
-          alt="Friendly virtual AI healthcare navigator"
-          width={520}
-          height={640}
-          priority
-        />
-        <span className={styles.blinkLine} aria-hidden="true" />
-        <span className={styles.speakingLine} aria-hidden="true" />
-      </div>
-
-      <div className={styles.adviserMessage}>
-        <strong>{copy.message}</strong>
-        <span>{modeCopy[mode].description}</span>
-      </div>
-
-      <div className={styles.adviserSteps} aria-label="Current analysis state">
-        <span className={styles.stepLive}>
-          <ShieldAlert size={15} aria-hidden="true" />
-          {recommendation.urgency.label}
-        </span>
-        <span>{recommendation.classification}</span>
-      </div>
-
-      <button
-        className={isRecording ? styles.voiceActive : styles.voiceButton}
-        type="button"
-        onClick={onToggleRecording}
-        aria-pressed={isRecording}
-      >
-        <Mic size={18} aria-hidden="true" />
-        {isRecording ? "停止聆聽" : "模擬語音輸入"}
-      </button>
-    </aside>
-  );
-}
-
-function RecommendationPanel({
-  recommendation,
+function ResultCard({
+  result,
+  isSubmitting,
   canSave,
   isSaved,
   isSaving,
@@ -670,7 +636,8 @@ function RecommendationPanel({
   onSave,
   onDecline,
 }: {
-  recommendation: Recommendation;
+  result: Recommendation | null;
+  isSubmitting: boolean;
   canSave: boolean;
   isSaved: boolean;
   isSaving: boolean;
@@ -678,41 +645,45 @@ function RecommendationPanel({
   onSave: () => void;
   onDecline: () => void;
 }) {
+  if (isSubmitting) {
+    return (
+      <section className={styles.resultCard} aria-live="polite">
+        <div className={styles.thinkingRow}>
+          <Activity size={18} aria-hidden="true" />
+          <span>正在分析… / Analyzing...</span>
+        </div>
+      </section>
+    );
+  }
+
+  if (!result) {
+    return null;
+  }
+
+  const isEmergency = result.urgency.level === 1;
+
   return (
-    <aside className={styles.resultPanel} aria-live="polite">
-      <div className={styles.panelHeader}>
+    <section
+      className={`${styles.resultCard} ${isEmergency ? styles.resultEmergency : ""}`}
+      aria-live={isEmergency ? "assertive" : "polite"}
+    >
+      <div className={styles.resultHeader}>
         <div>
-          <p className={styles.panelKicker}>結構化建議 / Structured Recommendation</p>
-          <h2>導航結果</h2>
+          <p>{result.classification}</p>
+          <h2>{result.urgency.label}</h2>
         </div>
-        <StatusDot tone={recommendation.urgency.tone} />
+        <span>{isEmergency ? "999 / A&E" : "Next step"}</span>
       </div>
 
-      <div className={`${styles.urgencyCard} ${styles[recommendation.urgency.tone]}`}>
-        <span>{recommendation.urgency.label}</span>
-        <strong>{recommendation.urgency.summary}</strong>
-      </div>
-
-      <ResultBlock title="問題類型" content={recommendation.classification} />
-      <ResultBlock title="下一步行動" content={recommendation.nextAction} />
-      <ResultBlock title="建議醫療路徑" content={recommendation.careRoute} />
-
-      <ListBlock title="可能相關部門" items={recommendation.possibleDepartments} />
-      <ListBlock title="可考慮保障" items={recommendation.insuranceCategories} />
-      <ListBlock title="購買或求診前核對" items={recommendation.decisionChecklist} />
-
-      {recommendation.questions.length > 0 ? (
-        <div className={styles.questionBox}>
-          <h3>只追問必要資料</h3>
-          {recommendation.questions.map((question) => (
-            <p key={question}>{question}</p>
-          ))}
-        </div>
-      ) : null}
+      <p className={styles.resultSummary}>{result.urgency.summary}</p>
+      <ResultBlock icon={ArrowRight} title="下一步 / Next step" content={result.nextAction} />
+      <ResultBlock icon={Hospital} title="科別方向 / Department direction" content={result.careRoute} />
+      <ResultList title="可能相關 / Possible options" items={result.possibleDepartments} />
+      <ResultList title="保險分類 / Insurance categories" items={result.insuranceCategories} />
 
       <div className={styles.escalationBox}>
         <AlertTriangle size={18} aria-hidden="true" />
-        <span>{recommendation.escalation}</span>
+        <span>{result.escalation}</span>
       </div>
 
       <MemoryConsentCard
@@ -724,85 +695,85 @@ function RecommendationPanel({
         onDecline={onDecline}
       />
 
-      <div className={styles.auditBox}>
-        <h3>審計紀錄 / Audit trail</h3>
-        {recommendation.audit.map((item) => (
-          <span key={item}>{item}</span>
-        ))}
-      </div>
-
-      <p className={styles.disclaimer}>{recommendation.disclaimer}</p>
-    </aside>
+      <p className={styles.disclaimer}>{result.disclaimer}</p>
+    </section>
   );
 }
 
-function ResultBlock({ title, content }: { title: string; content: string }) {
+function ResultBlock({
+  icon: Icon,
+  title,
+  content,
+}: {
+  icon: LucideIcon;
+  title: string;
+  content: string;
+}) {
   return (
     <div className={styles.resultBlock}>
-      <h3>{title}</h3>
-      <p>{content}</p>
+      <Icon size={16} aria-hidden="true" />
+      <div>
+        <h3>{title}</h3>
+        <p>{content}</p>
+      </div>
     </div>
   );
 }
 
-function ListBlock({ title, items }: { title: string; items: string[] }) {
+function ResultList({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className={styles.listBlock}>
+    <div className={styles.resultList}>
       <h3>{title}</h3>
       <ul>
         {items.map((item) => (
-          <li key={item}>
-            <ArrowRight size={14} aria-hidden="true" />
-            {item}
-          </li>
+          <li key={item}>{item}</li>
         ))}
       </ul>
     </div>
   );
 }
 
-function StatusDot({ tone }: { tone: Recommendation["urgency"]["tone"] }) {
-  return <span className={`${styles.statusDot} ${styles[`${tone}Dot`]}`} aria-hidden="true" />;
-}
-
-function getAvatarState({
-  isAnalyzing,
-  isFocused,
-  isRecording,
-  recommendation,
+function ReferencePanel({
+  id,
+  icon: Icon,
+  title,
+  subtitle,
+  rows,
+  tags,
 }: {
-  isAnalyzing: boolean;
-  isFocused: boolean;
-  isRecording: boolean;
-  recommendation: Recommendation;
-}): AvatarState {
-  if (recommendation.urgency.level === 1) {
-    return "emergency";
-  }
-
-  if (isRecording || isFocused) {
-    return "listening";
-  }
-
-  if (isAnalyzing) {
-    return "thinking";
-  }
-
-  if (recommendation.mode === "insurance" || recommendation.mode === "policy") {
-    return "reassurance";
-  }
-
-  return "speaking";
-}
-
-function activePipelineIndex(recommendation: Recommendation) {
-  if (recommendation.urgency.level === 1) {
-    return 6;
-  }
-
-  if (recommendation.mode === "insurance" || recommendation.mode === "policy") {
-    return 5;
-  }
-
-  return 4;
+  id: string;
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  rows?: string[][];
+  tags?: string[];
+}) {
+  return (
+    <div className={styles.referencePanel} id={id}>
+      <div className={styles.sectionTitle}>
+        <Icon size={20} aria-hidden="true" />
+        <div>
+          <h2>{title}</h2>
+          <p>{subtitle}</p>
+        </div>
+      </div>
+      {rows ? (
+        <div className={styles.routeList}>
+          {rows.map(([label, body]) => (
+            <div className={styles.routeRow} key={label}>
+              <strong>{label}</strong>
+              <span>{body}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {tags ? (
+        <div className={styles.coverageGrid}>
+          {tags.map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }

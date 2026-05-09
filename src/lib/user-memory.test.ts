@@ -48,7 +48,7 @@ describe("auth and memory safety", () => {
     expect(summary.value).toBe("[sensitive medical detail hidden]");
   });
 
-  it("uses RLS policies that restrict saved recommendations to the current user", () => {
+  it("uses RLS policies so users cannot access another user's saved recommendations", () => {
     const migration = readFileSync(
       new URL("../../supabase/migrations/001_auth_memory.sql", import.meta.url),
       "utf8",
