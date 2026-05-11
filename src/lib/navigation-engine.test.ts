@@ -133,6 +133,20 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates self-harm crisis wording inside insurance questions even without extra timing words", () => {
+    const result = analyzeIntake("insurance", "我想死同想傷害自己，住院保險會唔會賠？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.disclaimer).toBe(MEDICAL_SAFETY_DISCLAIMER);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["想死", "傷害自己"]),
+    );
+  });
+
   it("escalates a live emergency even when the user asks about claims at the same time", () => {
     const result = analyzeIntake("policy", "我現在胸痛，保單索償之前係咪要先去急症？");
 
