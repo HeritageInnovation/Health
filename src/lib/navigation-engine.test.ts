@@ -62,6 +62,28 @@ describe("navigation engine", () => {
     expect(output).not.toMatch(/AIA|友邦|Bupa|AXA|安盛|Cigna|Prudential|保誠|Manulife|宏利/i);
   });
 
+  it("keeps stroke coverage questions in insurance mode and adds an emergency-first warning", () => {
+    const result = analyzeIntake("insurance", "中風保險通常賠咩？如果真係出事，保障會點計？");
+
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("保險規劃");
+    expect(result.nextAction).toContain("請先立即求醫");
+    expect(result.careRoute).toContain("A&E");
+    expect(result.matchedSignals).toContain("中風");
+  });
+
+  it("keeps claims wording questions in policy mode even when emergency terms appear", () => {
+    const result = analyzeIntake("policy", "保單入面寫中風同胸痛相關治療點樣索償？");
+
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("索償");
+    expect(result.nextAction).toContain("請先立即求醫");
+    expect(result.careRoute).toContain("先處理醫療安全");
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["中風", "胸痛"]),
+    );
+  });
+
   it("treats policy explanation as claims and wording review, not an approval decision", () => {
     const result = analyzeIntake("policy", "我想理解住院保單的不保事項、等候期和索償流程。");
 
