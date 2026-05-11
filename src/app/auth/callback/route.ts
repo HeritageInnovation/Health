@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSafePostAuthRedirectPath } from "@/lib/auth-flow";
+import {
+  getAuthCallbackFailureReason,
+  getSafePostAuthRedirectPath,
+} from "@/lib/auth-flow";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
@@ -9,16 +12,20 @@ export async function GET(request: Request) {
     requestUrl.searchParams.get("next"),
   );
   const redirectTo = new URL(safeNext, requestUrl.origin);
+  const callbackError = getAuthCallbackFailureReason(requestUrl.searchParams);
 
-  if (code) {
-    const supabase = await createClient();
-    const { error } = supabase
-      ? await supabase.auth.exchangeCodeForSession(code)
-      : { error: new Error("Supabase is not configured.") };
+  if (callbackError) {
+    redirectTo.searchParams.set("auth_error", callbackError);
+    return NextResponse.redirect(redirectTo);
+  }
 
-    if (error) {
-      redirectTo.searchParams.set("auth_error", error.message);
-    }
+  const supabase = await createClient();
+  const { error } = supabase
+    ? await supabase.auth.exchangeCodeForSession(code!)
+    : { error: new Error("Supabase is not configured.") };
+
+  if (error) {
+    redirectTo.searchParams.set("auth_error", error.message);
   }
 
   return NextResponse.redirect(redirectTo);
