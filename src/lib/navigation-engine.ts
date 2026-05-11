@@ -78,8 +78,41 @@ const emergencyTerms = [
   "自殘",
   "suicidal",
   "self harm",
+  "想死",
+  "唔想活",
+  "不想活",
+  "傷害自己",
+  "傷害我自己",
+  "hurt myself",
+  "kill myself",
+  "割脈",
+  "cut myself",
+  "cut my wrist",
+  "overdose",
+  "服藥過量",
+  "食藥過量",
   "sudden severe headache",
   "突然劇烈頭痛",
+];
+
+const emergencyOverrideTerms = [
+  "自殺",
+  "自殘",
+  "suicidal",
+  "self harm",
+  "想死",
+  "唔想活",
+  "不想活",
+  "傷害自己",
+  "傷害我自己",
+  "hurt myself",
+  "kill myself",
+  "割脈",
+  "cut myself",
+  "cut my wrist",
+  "overdose",
+  "服藥過量",
+  "食藥過量",
 ];
 
 const activeEmergencyContextTerms = [
@@ -271,6 +304,7 @@ const defaultMedicalDepartments = ["家庭醫學 / Family Medicine", "普通科�
 export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   const text = normalize(input);
   const emergencyMatches = matchTerms(text, emergencyTerms);
+  const emergencyOverrideMatches = matchTerms(text, emergencyOverrideTerms);
   const activeEmergencyMatches = matchTerms(text, activeEmergencyContextTerms);
   const sameDayMatches = matchTerms(text, sameDayTerms);
   const departmentMatch = departmentRules.find((rule) => matchTerms(text, rule.terms).length > 0);
@@ -281,7 +315,12 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
 
   if (
     emergencyMatches.length > 0 &&
-    (mode === "medical" || !hasExplicitInsuranceContext || hasActiveEmergencyContext)
+    (
+      mode === "medical" ||
+      !hasExplicitInsuranceContext ||
+      hasActiveEmergencyContext ||
+      emergencyOverrideMatches.length > 0
+    )
   ) {
     return {
       mode: "medical",
@@ -306,13 +345,19 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
       escalation: EMERGENCY_ESCALATION_COPY,
       disclaimer: medicalDisclaimer(),
       audit: [
-        "Detected emergency red-flag wording.",
+        emergencyOverrideMatches.length > 0
+          ? "Detected emergency self-harm or overdose wording."
+          : "Detected emergency red-flag wording.",
         hasActiveEmergencyContext
           ? "Detected live-symptom wording inside insurance context and prioritized emergency care."
           : "Stopped lengthy intake.",
         "Escalated to emergency care route.",
       ],
-      matchedSignals: unique([...emergencyMatches, ...activeEmergencyMatches]),
+      matchedSignals: unique([
+        ...emergencyMatches,
+        ...emergencyOverrideMatches,
+        ...activeEmergencyMatches,
+      ]),
     };
   }
 
