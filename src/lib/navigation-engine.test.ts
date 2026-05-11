@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { analyzeIntake } from "./navigation-engine";
+import {
+  EMERGENCY_ESCALATION_COPY,
+  INSURANCE_SAFETY_DISCLAIMER,
+  MEDICAL_SAFETY_DISCLAIMER,
+} from "./safety-copy";
 
 describe("navigation engine", () => {
   it("escalates chest pain and breathlessness without follow-up questions", () => {
@@ -63,5 +68,19 @@ describe("navigation engine", () => {
     expect(result.urgency.level).toBe(1);
     expect(result.memoryCandidates).toHaveLength(0);
     expect(result.decisionChecklist.join(" ")).toContain("立即致電 999");
+  });
+
+  it("uses the required medical and emergency safety wording", () => {
+    const result = analyzeIntake("medical", "我胸口痛，又覺得氣促，應該去邊度？");
+
+    expect(result.disclaimer).toBe(MEDICAL_SAFETY_DISCLAIMER);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+  });
+
+  it("uses the required insurance safety wording", () => {
+    const result = analyzeIntake("insurance", "我想了解住院醫療保障和索償流程。");
+
+    expect(result.disclaimer).toBe(INSURANCE_SAFETY_DISCLAIMER);
+    expect(result.escalation).toContain(INSURANCE_SAFETY_DISCLAIMER);
   });
 });
