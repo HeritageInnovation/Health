@@ -93,6 +93,22 @@ const DIAGNOSIS_LIKE_PATTERNS = [
   /\bhas\s+(?:cancer|diabetes|depression|asthma|stroke)\b/iu,
 ];
 
+const SAFE_SESSION_TITLES = {
+  symptom: "症狀導航紀錄 / Symptom navigation session",
+  department: "科別導航紀錄 / Department routing session",
+  insurance: "保險導航紀錄 / Insurance guidance session",
+  general: "一般導航紀錄 / General guidance session",
+} satisfies Record<ConversationMode, string>;
+
+const SAFE_USER_MESSAGE_BY_LEVEL = {
+  normal:
+    "已隱藏詳細自由文字內容，只保留本次已同意保存的導航紀錄。Sensitive free-text details were not stored in memory.",
+  caution:
+    "已隱藏需注意的詳細自由文字內容，只保留本次已同意保存的導航紀錄。Sensitive free-text details were not stored in memory.",
+  emergency:
+    "緊急自由文字內容不會保存，只保留急症升級結果與已同意保存的紀錄。Emergency free-text details were not stored in memory.",
+} satisfies Record<SafetyLevel, string>;
+
 export function canRememberPreferenceKey(key: string) {
   const normalizedKey = key.trim().toLowerCase();
 
@@ -111,6 +127,24 @@ export function shouldIncludeInMemorySummary(
   }
 
   return !DIAGNOSIS_LIKE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+export function getSafeConversationSessionTitle(mode: ConversationMode) {
+  return SAFE_SESSION_TITLES[mode];
+}
+
+export function sanitizeConversationMessageContent(
+  role: MessageRole,
+  content: string,
+  safetyLevel: SafetyLevel,
+) {
+  const trimmedContent = content.trim();
+
+  if (role !== "user") {
+    return trimmedContent;
+  }
+
+  return SAFE_USER_MESSAGE_BY_LEVEL[safetyLevel];
 }
 
 export async function getOrCreateProfile(user: User, supabase: MemoryClient) {
@@ -183,7 +217,7 @@ export async function saveConversationSession(
     .insert({
       user_id: userId,
       mode,
-      title,
+      title: title.trim().length > 0 ? getSafeConversationSessionTitle(mode) : null,
       language,
     })
     .select("*")
@@ -205,13 +239,19 @@ export async function saveConversationMessage(
   assertUserId(userId);
   assertId(sessionId, "sessionId");
 
+  const safeContent = sanitizeConversationMessageContent(
+    role,
+    content,
+    safetyLevel,
+  );
+
   const { data, error } = await supabase
     .from("conversation_messages")
     .insert({
       session_id: sessionId,
       user_id: userId,
       role,
-      content,
+      content: safeContent,
       safety_level: safetyLevel,
     })
     .select("*")
