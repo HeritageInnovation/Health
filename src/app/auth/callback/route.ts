@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getAuthCallbackFailureReason,
+  getSafeAuthCallbackErrorMessage,
   getSafePostAuthRedirectPath,
 } from "@/lib/auth-flow";
 import { createClient } from "@/lib/supabase/server";
@@ -12,7 +13,9 @@ export async function GET(request: Request) {
     requestUrl.searchParams.get("next"),
   );
   const redirectTo = new URL(safeNext, requestUrl.origin);
-  const callbackError = getAuthCallbackFailureReason(requestUrl.searchParams);
+  const callbackError = getSafeAuthCallbackErrorMessage(
+    getAuthCallbackFailureReason(requestUrl.searchParams),
+  );
 
   if (callbackError) {
     redirectTo.searchParams.set("auth_error", callbackError);
@@ -25,7 +28,10 @@ export async function GET(request: Request) {
     : { error: new Error("Supabase is not configured.") };
 
   if (error) {
-    redirectTo.searchParams.set("auth_error", error.message);
+    redirectTo.searchParams.set(
+      "auth_error",
+      getSafeAuthCallbackErrorMessage(error.message) ?? error.message,
+    );
   }
 
   return NextResponse.redirect(redirectTo);
