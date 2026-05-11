@@ -66,8 +66,7 @@ export function UserMenu({
         <div className={styles.anonymousWarning}>
           <ShieldAlert size={15} aria-hidden="true" />
           <span>
-            匿名帳戶在登出、清除瀏覽器資料或更換裝置後可能無法取回。Anonymous history
-            may be lost after sign out, browser clearing, or device change.
+            匿名帳戶登出時會清除已保存的匿名雲端紀錄；如在升級前清除瀏覽器資料或更換裝置，亦可能無法取回。Anonymous saved cloud memory is cleared on sign out, and browser clearing or device changes before upgrade may still make it unrecoverable.
           </span>
         </div>
       ) : null}
