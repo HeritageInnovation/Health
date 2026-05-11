@@ -98,6 +98,16 @@ const DIAGNOSIS_LIKE_PATTERNS = [
   /\bhas\s+(?:cancer|diabetes|depression|asthma|stroke)\b/iu,
 ];
 
+const FORBIDDEN_MEMORY_VALUE_PATTERNS = [
+  ...DIAGNOSIS_LIKE_PATTERNS,
+  /\b[A-Z]{1,2}\d{6}\([0-9A]\)\b/u,
+  /\b\d{8,19}\b/u,
+  /\b(?:policy|member|claim)\s*(?:number|no\.?)\s*[:#-]?\s*[A-Z0-9-]{6,}\b/iu,
+  /\b(?:visa|mastercard|amex)\b/iu,
+];
+
+const MAX_PREFERENCE_TEXT_LENGTH = 160;
+
 const SAFE_SESSION_TITLES = {
   symptom: "症狀導航紀錄 / Symptom navigation session",
   department: "科別導航紀錄 / Department routing session",
@@ -123,6 +133,10 @@ export function canRememberPreferenceKey(key: string) {
     normalizedKey.length > 0 &&
     !FORBIDDEN_MEMORY_KEY_TERMS.some((term) => normalizedKey.includes(term))
   );
+}
+
+export function isSafePreferenceValue(value: Json) {
+  return inspectPreferenceValue(value);
 }
 
 export function shouldIncludeInMemorySummary(
@@ -189,6 +203,14 @@ export async function saveUserPreference(
 
   if (!canRememberPreferenceKey(key)) {
     throw new Error("This preference key is not safe for memory storage.");
+  }
+
+  const valueSafety = inspectPreferenceValue(value);
+
+  if (!valueSafety.safe) {
+    throw new Error(
+      `This preference value is not safe for memory storage: ${valueSafety.reason}.`,
+    );
   }
 
   const { data, error } = await supabase
@@ -556,6 +578,68 @@ function isNavigationRecommendation(
   recommendation: Recommendation | SavedRecommendationInput,
 ): recommendation is Recommendation {
   return "urgency" in recommendation && "nextAction" in recommendation;
+}
+
+function inspectPreferenceValue(value: Json): { safe: boolean; reason?: string } {
+  if (value === null || typeof value === "boolean" || typeof value === "number") {
+    return { safe: true };
+  }
+
+  if (typeof value === "string") {
+    return inspectPreferenceText(value);
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const result = inspectPreferenceValue(item);
+
+      if (!result.safe) {
+        return result;
+      }
+    }
+
+    return { safe: true };
+  }
+
+  for (const nestedValue of Object.values(value)) {
+    if (nestedValue === undefined) {
+      continue;
+    }
+
+    const result = inspectPreferenceValue(nestedValue);
+
+    if (!result.safe) {
+      return result;
+    }
+  }
+
+  return { safe: true };
+}
+
+function inspectPreferenceText(text: string): { safe: boolean; reason?: string } {
+  const trimmed = text.trim();
+
+  if (trimmed.length === 0) {
+    return { safe: true };
+  }
+
+  if (trimmed.length > MAX_PREFERENCE_TEXT_LENGTH) {
+    return {
+      safe: false,
+      reason: "free-text preference values are too long to store safely",
+    };
+  }
+
+  for (const pattern of FORBIDDEN_MEMORY_VALUE_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return {
+        safe: false,
+        reason: "preference values cannot contain diagnosis-like text or sensitive identifiers",
+      };
+    }
+  }
+
+  return { safe: true };
 }
 
 function getUserDisplayName(user: User) {
