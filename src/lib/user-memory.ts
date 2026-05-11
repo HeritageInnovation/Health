@@ -30,6 +30,11 @@ export type ConversationMode = "symptom" | "department" | "insurance" | "general
 export type MessageRole = "user" | "assistant" | "system";
 export type SafetyLevel = "normal" | "caution" | "emergency";
 export type RecommendationType = "department" | "insurance" | "emergency" | "followup";
+export type ConsentType =
+  | "save_memory"
+  | "health_data"
+  | "marketing"
+  | "adviser_handoff";
 
 export type ConversationSession = {
   id: string;
@@ -108,6 +113,8 @@ const SAFE_USER_MESSAGE_BY_LEVEL = {
   emergency:
     "緊急自由文字內容不會保存，只保留急症升級結果與已同意保存的紀錄。Emergency free-text details were not stored in memory.",
 } satisfies Record<SafetyLevel, string>;
+
+const MEMORY_SAVE_PREFERENCE_KEY = "memory_save_enabled";
 
 export function canRememberPreferenceKey(key: string) {
   const normalizedKey = key.trim().toLowerCase();
@@ -199,6 +206,70 @@ export async function saveUserPreference(
     .single();
 
   throwIfSupabaseError(error, "save user preference");
+
+  return data;
+}
+
+export async function getMemorySavePreference(
+  userId: string,
+  supabase: MemoryClient,
+) {
+  assertUserId(userId);
+
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .select("preference_value")
+    .eq("user_id", userId)
+    .eq("preference_key", MEMORY_SAVE_PREFERENCE_KEY)
+    .maybeSingle();
+
+  throwIfSupabaseError(error, "load memory save preference");
+
+  const value = (data as { preference_value?: Json } | null)?.preference_value;
+
+  return typeof value === "boolean" ? value : null;
+}
+
+export async function setMemorySavePreference(
+  userId: string,
+  enabled: boolean,
+  supabase: MemoryClient,
+) {
+  assertUserId(userId);
+
+  await Promise.all([
+    saveUserPreference(
+      userId,
+      MEMORY_SAVE_PREFERENCE_KEY,
+      enabled,
+      "explicit_user_choice",
+      supabase,
+    ),
+    recordConsentEvent(userId, "save_memory", enabled, supabase),
+  ]);
+
+  return enabled;
+}
+
+export async function recordConsentEvent(
+  userId: string,
+  consentType: ConsentType,
+  granted: boolean,
+  supabase: MemoryClient,
+) {
+  assertUserId(userId);
+
+  const { data, error } = await supabase
+    .from("consent_events")
+    .insert({
+      user_id: userId,
+      consent_type: consentType,
+      granted,
+    })
+    .select("*")
+    .single();
+
+  throwIfSupabaseError(error, "record consent event");
 
   return data;
 }
