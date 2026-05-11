@@ -6,9 +6,9 @@ const SAFE_REDIRECT_ORIGIN = "https://health-os.local";
 export const anonymousModeCopy = {
   requiresEmail: false,
   zh:
-    "你可以匿名使用本服務。匿名模式適合初步查詢，但如果你登出、清除瀏覽器資料或更換裝置，可能無法再次取回紀錄。建立帳戶可保存偏好、家庭成員資料及保險分析。",
+    "你可以匿名使用本服務。匿名模式適合初步查詢；如你之後登出匿名帳戶，已保存的匿名雲端紀錄會一併清除。若你清除瀏覽器資料或更換裝置而未先升級帳戶，亦可能無法再次取回紀錄。建立帳戶可保存偏好、家庭成員資料及保險分析。",
   en:
-    "You can use this service anonymously. Anonymous mode is suitable for initial guidance, but if you sign out, clear browser data, or change device, you may not be able to recover your history. Creating an account lets you save preferences, household profiles, and insurance assessments.",
+    "You can use this service anonymously. Anonymous mode is suitable for initial guidance; if you later sign out of an anonymous account, its saved cloud memory is cleared as well. If you clear browser data or change device before upgrading, you may not be able to recover your history. Creating an account lets you save preferences, household profiles, and insurance assessments.",
 };
 
 export function getAnonymousStartState(email: string) {
