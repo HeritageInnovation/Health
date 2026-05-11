@@ -8,8 +8,9 @@ import {
   anonymousModeCopy,
   getAnonymousStartState,
 } from "@/lib/auth-flow";
+import { bootstrapAnonymousSession } from "@/lib/auth-session-bootstrap";
 import { getAuthRedirectTo } from "@/lib/supabase/client";
-import { getOrCreateProfile, type Profile } from "@/lib/user-memory";
+import type { Profile } from "@/lib/user-memory";
 import styles from "@/components/navigation-workspace.module.css";
 
 type AuthPanelProps = {
@@ -57,10 +58,19 @@ export function AuthPanel({
         return;
       }
 
-      const profile = await getOrCreateProfile(data.user, supabase);
-      onUserReady(data.user);
-      onProfileReady(profile);
-      setStatus("已匿名開始，可選擇保存今次紀錄。Anonymous mode is ready.");
+      try {
+        const profile = await bootstrapAnonymousSession(data.user, supabase);
+        onUserReady(data.user);
+        onProfileReady(profile);
+        setStatus("已匿名開始，可選擇保存今次紀錄。Anonymous mode is ready.");
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : "未能完成匿名開始。Could not finish anonymous start.",
+        );
+        setStatus(null);
+      }
     });
   }
 
