@@ -1,5 +1,8 @@
 export const GOOGLE_OAUTH_ENABLED = false;
 
+const DEFAULT_POST_AUTH_REDIRECT = "/";
+const SAFE_REDIRECT_ORIGIN = "https://health-os.local";
+
 export const anonymousModeCopy = {
   requiresEmail: false,
   zh:
@@ -14,4 +17,33 @@ export function getAnonymousStartState(email: string) {
     requiresEmail: anonymousModeCopy.requiresEmail,
     email: email.trim(),
   };
+}
+
+export function getSafePostAuthRedirectPath(next: string | null | undefined) {
+  if (typeof next !== "string") {
+    return DEFAULT_POST_AUTH_REDIRECT;
+  }
+
+  const trimmed = next.trim();
+
+  if (
+    trimmed.length === 0 ||
+    !trimmed.startsWith("/") ||
+    trimmed.startsWith("//") ||
+    trimmed.includes("\\")
+  ) {
+    return DEFAULT_POST_AUTH_REDIRECT;
+  }
+
+  try {
+    const redirectUrl = new URL(trimmed, SAFE_REDIRECT_ORIGIN);
+
+    if (redirectUrl.origin !== SAFE_REDIRECT_ORIGIN) {
+      return DEFAULT_POST_AUTH_REDIRECT;
+    }
+
+    return `${redirectUrl.pathname}${redirectUrl.search}${redirectUrl.hash}`;
+  } catch {
+    return DEFAULT_POST_AUTH_REDIRECT;
+  }
 }
