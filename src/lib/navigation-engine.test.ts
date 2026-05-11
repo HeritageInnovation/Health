@@ -63,8 +63,7 @@ describe("navigation engine", () => {
   });
 
   it("routes policy and claims wording through policy guidance even from the insurance entry point", () => {
-    const result = analyzeIntake("insurance", "我想理解住院保單的不保事項、等候期和索償流程。")
-;
+    const result = analyzeIntake("insurance", "我想理解住院保單的不保事項、等候期和索償流程。");
 
     expect(result.mode).toBe("policy");
     expect(result.classification).toContain("索償");
@@ -92,6 +91,28 @@ describe("navigation engine", () => {
     expect(result.matchedSignals).toEqual(
       expect.arrayContaining(["保單", "索償", "中風", "胸痛"]),
     );
+  });
+
+  it("escalates a live emergency even when the question is framed as insurance coverage", () => {
+    const result = analyzeIntake("insurance", "我而家胸痛同呼吸困難，保險包唔包？應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["而家", "呼吸困難", "胸痛", "應該點做"]),
+    );
+  });
+
+  it("escalates a live emergency even when the user asks about claims at the same time", () => {
+    const result = analyzeIntake("policy", "我現在胸痛，保單索償之前係咪要先去急症？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.careRoute).toContain("A&E");
+    expect(result.disclaimer).toBe(MEDICAL_SAFETY_DISCLAIMER);
   });
 
   it("treats policy explanation as claims and wording review, not an approval decision", () => {
