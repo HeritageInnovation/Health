@@ -1,3 +1,9 @@
+import {
+  EMERGENCY_ESCALATION_COPY,
+  INSURANCE_SAFETY_DISCLAIMER,
+  MEDICAL_SAFETY_DISCLAIMER,
+} from "./safety-copy";
+
 export type IntakeMode = "medical" | "insurance" | "policy";
 
 export type UrgencyLevel = 1 | 2 | 3 | 4;
@@ -212,7 +218,7 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
         "安全後才整理保單、收據及索償資料。",
       ],
       memoryCandidates: [],
-      escalation: "如有生命危險、嚴重痛楚、呼吸困難、中風徵兆、自傷風險或症狀快速惡化，請立即致電 999。",
+      escalation: EMERGENCY_ESCALATION_COPY,
       disclaimer: medicalDisclaimer(),
       audit: [
         "Detected emergency red-flag wording.",
@@ -325,7 +331,7 @@ function buildInsuranceRecommendation(text: string, matches: typeof insuranceSig
       "住院、門診、牙科、產科、危疾或旅遊保障需要",
       "本地香港或國際保障偏好",
     ],
-    escalation: "購買前應諮詢持牌保險顧問，並細閱保單條款、不保事項、等候期、核保要求及索償流程。",
+    escalation: `${INSURANCE_SAFETY_DISCLAIMER} 購買前應諮詢持牌保險顧問，並細閱保單條款、不保事項、等候期、核保要求及索償流程。`,
     disclaimer: insuranceDisclaimer(),
     audit: [
       "Classified as insurance planning.",
@@ -375,7 +381,7 @@ function buildPolicyRecommendation(text: string): Recommendation {
       "索償流程偏好和常用文件清單",
       "是否需要持牌顧問 handoff",
     ],
-    escalation: "如涉及索償爭議、高額醫療費或產品購買決定，應交由持牌顧問或合規人員覆核。",
+    escalation: `${INSURANCE_SAFETY_DISCLAIMER} 如涉及索償爭議、高額醫療費或產品購買決定，應交由持牌顧問或合規人員覆核。`,
     disclaimer: insuranceDisclaimer(),
     audit: [
       "Classified as policy or claims explanation.",
@@ -425,9 +431,9 @@ function unique<T>(items: T[]) {
 }
 
 function medicalDisclaimer() {
-  return "AI 只提供導航及決策支援，不作診斷、處方或替代醫生。如有疑問或症狀惡化，請尋求專業醫療意見。";
+  return MEDICAL_SAFETY_DISCLAIMER;
 }
 
 function insuranceDisclaimer() {
-  return "AI 只提供一般保險教育及需要分析框架，不是保險公司、經紀或持牌保險中介，不會保證承保、核保或索償結果。";
+  return INSURANCE_SAFETY_DISCLAIMER;
 }
