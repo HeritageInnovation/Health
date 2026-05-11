@@ -186,6 +186,27 @@ const insuranceSignals = [
   },
 ];
 
+const insuranceContextTerms = [
+  "保險",
+  "保障",
+  "保單",
+  "索償",
+  "理賠",
+  "claim",
+  "claims",
+  "coverage",
+  "covered",
+  "cover",
+  "policy",
+  "premium",
+  "waiting period",
+  "exclusion",
+  "benefit",
+];
+
+const insuranceSafetyNudge =
+  "如果你同時正出現胸痛、嚴重呼吸困難、中風徵象、昏迷、嚴重出血、嚴重過敏反應或其他危急情況，請先立即求醫，再處理保障或索償問題。";
+
 const defaultMedicalDepartments = ["家庭醫學 / Family Medicine", "普通科醫生 / GP"];
 
 export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
@@ -194,8 +215,12 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   const sameDayMatches = matchTerms(text, sameDayTerms);
   const departmentMatch = departmentRules.find((rule) => matchTerms(text, rule.terms).length > 0);
   const insuranceMatches = insuranceSignals.filter((signal) => matchTerms(text, signal.terms).length > 0);
+  const hasExplicitInsuranceContext = matchTerms(text, insuranceContextTerms).length > 0;
 
-  if (emergencyMatches.length > 0) {
+  if (
+    emergencyMatches.length > 0 &&
+    (mode === "medical" || !hasExplicitInsuranceContext)
+  ) {
     return {
       mode,
       classification: "緊急醫療問題 / Urgent medical concern",
@@ -228,11 +253,11 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   }
 
   if (mode === "insurance") {
-    return buildInsuranceRecommendation(text, insuranceMatches);
+    return buildInsuranceRecommendation(text, insuranceMatches, emergencyMatches);
   }
 
   if (mode === "policy") {
-    return buildPolicyRecommendation(text);
+    return buildPolicyRecommendation(text, emergencyMatches);
   }
 
   const urgency =
@@ -291,11 +316,16 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   };
 }
 
-function buildInsuranceRecommendation(text: string, matches: typeof insuranceSignals): Recommendation {
+function buildInsuranceRecommendation(
+  text: string,
+  matches: typeof insuranceSignals,
+  emergencyMatches: string[],
+): Recommendation {
   const categories = unique([
     ...matches.flatMap((match) => match.categories),
     ...(matches.length === 0 ? ["自願醫保 / 個人住院醫療", "門診保險 if frequent clinic visits", "危疾及人壽 if dependants or mortgage"] : []),
   ]);
+  const includesEmergencyTerms = emergencyMatches.length > 0;
 
   return {
     mode: "insurance",
@@ -306,8 +336,12 @@ function buildInsuranceRecommendation(text: string, matches: typeof insuranceSig
       tone: "planning",
       summary: "這是保障規劃問題，適合比較保障類型和準備與持牌顧問討論。",
     },
-    nextAction: "先確認僱主保障、住院/門診需要、家庭責任、預算、既有病歷和公私營醫療偏好。",
-    careRoute: "不是醫療求診路徑；如同時有症狀或危險徵兆，先處理醫療安全。",
+    nextAction: includesEmergencyTerms
+      ? `${insuranceSafetyNudge} 如你是在比較保障或索償安排，先確認僱主保障、住院/門診需要、家庭責任、預算、既有病歷和公私營醫療偏好。`
+      : "先確認僱主保障、住院/門診需要、家庭責任、預算、既有病歷和公私營醫療偏好。",
+    careRoute: includesEmergencyTerms
+      ? "這是保險規劃問題；若你提到的是正在發生的危急症狀，應先去急症室 / A&E，再處理保障。"
+      : "不是醫療求診路徑；如同時有症狀或危險徵兆，先處理醫療安全。",
     possibleDepartments: ["持牌保險顧問 / Licensed insurance adviser", "如有健康症狀，先諮詢醫生"],
     insuranceCategories: categories,
     questions: [
@@ -334,13 +368,21 @@ function buildInsuranceRecommendation(text: string, matches: typeof insuranceSig
     audit: [
       "Classified as insurance planning.",
       matches.length > 0 ? `Matched ${matches.length} insurance profile signal(s).` : "No specific profile signal; returned general priority framework.",
-      "Avoided specific product recommendation.",
+      includesEmergencyTerms
+        ? "Detected emergency vocabulary inside insurance context and kept insurance classification with emergency-first safety wording."
+        : "Avoided specific product recommendation.",
     ],
-    matchedSignals: matches.flatMap((match) => match.terms.filter((term) => text.includes(term.toLowerCase()))),
+    matchedSignals: unique([
+      ...matches.flatMap((match) => match.terms.filter((term) => text.includes(term.toLowerCase()))),
+      ...emergencyMatches,
+    ]),
   };
 }
 
-function buildPolicyRecommendation(text: string): Recommendation {
+function buildPolicyRecommendation(
+  text: string,
+  emergencyMatches: string[],
+): Recommendation {
   const categories = [
     "索償流程 / Claims process",
     "不保事項 / Exclusions",
@@ -348,6 +390,7 @@ function buildPolicyRecommendation(text: string): Recommendation {
     "自付額或共同保險 / Deductible or co-insurance",
     "續保條款 / Renewal terms",
   ];
+  const includesEmergencyTerms = emergencyMatches.length > 0;
 
   return {
     mode: "policy",
@@ -358,8 +401,12 @@ function buildPolicyRecommendation(text: string): Recommendation {
       tone: "planning",
       summary: "這適合整理保單問題，但不能保證承保、核保或索償結果。",
     },
-    nextAction: "準備保單條款、保障表、索償通知、醫療收據及保險公司回覆，逐項核對。",
-    careRoute: "如文件問題背後涉及正在惡化的症狀，先處理醫療需要。",
+    nextAction: includesEmergencyTerms
+      ? `${insuranceSafetyNudge} 準備保單條款、保障表、索償通知、醫療收據及保險公司回覆，逐項核對。`
+      : "準備保單條款、保障表、索償通知、醫療收據及保險公司回覆，逐項核對。",
+    careRoute: includesEmergencyTerms
+      ? "如你提到的是正在發生的危急症狀，應先處理醫療安全；文件、索償和保單解釋可於情況穩定後再處理。"
+      : "如文件問題背後涉及正在惡化的症狀，先處理醫療需要。",
     possibleDepartments: ["保險公司客戶服務", "持牌保險顧問", "醫療服務提供者的賬單或病歷部門"],
     insuranceCategories: categories,
     questions: [
@@ -384,9 +431,11 @@ function buildPolicyRecommendation(text: string): Recommendation {
     audit: [
       "Classified as policy or claims explanation.",
       text.length > 0 ? "Prepared document-review checklist." : "No document text provided yet.",
-      "Avoided claims approval or denial decision.",
+      includesEmergencyTerms
+        ? "Detected emergency vocabulary inside insurance context and kept claims/policy explanation with emergency-first safety wording."
+        : "Avoided claims approval or denial decision.",
     ],
-    matchedSignals: [],
+    matchedSignals: emergencyMatches,
   };
 }
 
