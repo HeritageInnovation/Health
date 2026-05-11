@@ -204,6 +204,27 @@ const insuranceContextTerms = [
   "benefit",
 ];
 
+const policyContextTerms = [
+  "保單",
+  "索償",
+  "理賠",
+  "claim",
+  "claims",
+  "policy",
+  "waiting period",
+  "exclusion",
+  "benefit",
+  "條款",
+  "保障表",
+  "不保事項",
+  "等候期",
+  "拒賠",
+  "自付額",
+  "共同保險",
+  "預先批核",
+  "醫療收據",
+];
+
 const insuranceSafetyNudge =
   "如果你同時正出現胸痛、嚴重呼吸困難、中風徵象、昏迷、嚴重出血、嚴重過敏反應或其他危急情況，請先立即求醫，再處理保障或索償問題。";
 
@@ -216,6 +237,7 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   const departmentMatch = departmentRules.find((rule) => matchTerms(text, rule.terms).length > 0);
   const insuranceMatches = insuranceSignals.filter((signal) => matchTerms(text, signal.terms).length > 0);
   const hasExplicitInsuranceContext = matchTerms(text, insuranceContextTerms).length > 0;
+  const hasExplicitPolicyContext = matchTerms(text, policyContextTerms).length > 0;
 
   if (
     emergencyMatches.length > 0 &&
@@ -253,6 +275,10 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   }
 
   if (mode === "insurance") {
+    if (hasExplicitPolicyContext) {
+      return buildPolicyRecommendation(text, emergencyMatches);
+    }
+
     return buildInsuranceRecommendation(text, insuranceMatches, emergencyMatches);
   }
 
@@ -279,13 +305,17 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
 
   return {
     mode,
-    classification: sameDayMatches.length > 0 ? "非緊急但需即日處理 / Same-day care" : "非緊急症狀導航 / Non-urgent symptom navigation",
+    classification:
+      sameDayMatches.length > 0
+        ? "非緊急但需即日處理 / Same-day care"
+        : "非緊急症狀導航 / Non-urgent symptom navigation",
     urgency,
     nextAction:
       sameDayMatches.length > 0
         ? "今日內安排醫療評估；如果症狀加重或出現胸痛、氣促、昏迷、中風徵兆等，立即改為急症處理。"
         : "先預約普通科或家庭醫生；如已有指定專科或長期病紀錄，可帶同相關資料求診。",
-    careRoute: departmentMatch?.route ?? "可先由普通科或家庭醫生評估，再按需要轉介合適專科。",
+    careRoute:
+      departmentMatch?.route ?? "可先由普通科或家庭醫生評估，再按需要轉介合適專科。",
     possibleDepartments: departmentMatch?.departments ?? defaultMedicalDepartments,
     insuranceCategories: inferInsuranceForCareRoute(departmentMatch),
     questions: [
@@ -305,14 +335,22 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
       "公營、私營或混合醫療偏好",
       "常用地區：港島、九龍或新界",
     ],
-    escalation: "如出現危險徵兆、症狀快速惡化、嬰幼兒嚴重異常或精神健康危機，請立即求急症服務。",
+    escalation:
+      "如出現危險徵兆、症狀快速惡化、嬰幼兒嚴重異常或精神健康危機，請立即求急症服務。",
     disclaimer: medicalDisclaimer(),
     audit: [
-      sameDayMatches.length > 0 ? "Detected same-day care signal." : "No emergency red flag detected from the provided text.",
-      departmentMatch ? `Mapped to ${departmentMatch.departments[0]}.` : "Defaulted to GP/family doctor first route.",
+      sameDayMatches.length > 0
+        ? "Detected same-day care signal."
+        : "No emergency red flag detected from the provided text.",
+      departmentMatch
+        ? `Mapped to ${departmentMatch.departments[0]}.`
+        : "Defaulted to GP/family doctor first route.",
       "Applied safe wording: possible department, not diagnosis.",
     ],
-    matchedSignals: [...sameDayMatches, ...(departmentMatch ? matchTerms(text, departmentMatch.terms) : [])],
+    matchedSignals: [
+      ...sameDayMatches,
+      ...(departmentMatch ? matchTerms(text, departmentMatch.terms) : []),
+    ],
   };
 }
 
@@ -323,7 +361,13 @@ function buildInsuranceRecommendation(
 ): Recommendation {
   const categories = unique([
     ...matches.flatMap((match) => match.categories),
-    ...(matches.length === 0 ? ["自願醫保 / 個人住院醫療", "門診保險 if frequent clinic visits", "危疾及人壽 if dependants or mortgage"] : []),
+    ...(matches.length === 0
+      ? [
+          "自願醫保 / 個人住院醫療",
+          "門診保險 if frequent clinic visits",
+          "危疾及人壽 if dependants or mortgage",
+        ]
+      : []),
   ]);
   const includesEmergencyTerms = emergencyMatches.length > 0;
 
@@ -342,7 +386,10 @@ function buildInsuranceRecommendation(
     careRoute: includesEmergencyTerms
       ? "這是保險規劃問題；若你提到的是正在發生的危急症狀，應先去急症室 / A&E，再處理保障。"
       : "不是醫療求診路徑；如同時有症狀或危險徵兆，先處理醫療安全。",
-    possibleDepartments: ["持牌保險顧問 / Licensed insurance adviser", "如有健康症狀，先諮詢醫生"],
+    possibleDepartments: [
+      "持牌保險顧問 / Licensed insurance adviser",
+      "如有健康症狀，先諮詢醫生",
+    ],
     insuranceCategories: categories,
     questions: [
       "你是否香港居民或在港長住？",
@@ -367,13 +414,17 @@ function buildInsuranceRecommendation(
     disclaimer: insuranceDisclaimer(),
     audit: [
       "Classified as insurance planning.",
-      matches.length > 0 ? `Matched ${matches.length} insurance profile signal(s).` : "No specific profile signal; returned general priority framework.",
+      matches.length > 0
+        ? `Matched ${matches.length} insurance profile signal(s).`
+        : "No specific profile signal; returned general priority framework.",
       includesEmergencyTerms
         ? "Detected emergency vocabulary inside insurance context and kept insurance classification with emergency-first safety wording."
         : "Avoided specific product recommendation.",
     ],
     matchedSignals: unique([
-      ...matches.flatMap((match) => match.terms.filter((term) => text.includes(term.toLowerCase()))),
+      ...matches.flatMap((match) =>
+        match.terms.filter((term) => text.includes(term.toLowerCase())),
+      ),
       ...emergencyMatches,
     ]),
   };
@@ -407,7 +458,11 @@ function buildPolicyRecommendation(
     careRoute: includesEmergencyTerms
       ? "如你提到的是正在發生的危急症狀，應先處理醫療安全；文件、索償和保單解釋可於情況穩定後再處理。"
       : "如文件問題背後涉及正在惡化的症狀，先處理醫療需要。",
-    possibleDepartments: ["保險公司客戶服務", "持牌保險顧問", "醫療服務提供者的賬單或病歷部門"],
+    possibleDepartments: [
+      "保險公司客戶服務",
+      "持牌保險顧問",
+      "醫療服務提供者的賬單或病歷部門",
+    ],
     insuranceCategories: categories,
     questions: [
       "你想理解保障範圍、索償流程，還是拒賠原因？",
@@ -430,18 +485,26 @@ function buildPolicyRecommendation(
     disclaimer: insuranceDisclaimer(),
     audit: [
       "Classified as policy or claims explanation.",
-      text.length > 0 ? "Prepared document-review checklist." : "No document text provided yet.",
+      text.length > 0
+        ? "Prepared document-review checklist."
+        : "No document text provided yet.",
       includesEmergencyTerms
         ? "Detected emergency vocabulary inside insurance context and kept claims/policy explanation with emergency-first safety wording."
         : "Avoided claims approval or denial decision.",
     ],
-    matchedSignals: emergencyMatches,
+    matchedSignals: unique([
+      ...matchTerms(text, policyContextTerms),
+      ...emergencyMatches,
+    ]),
   };
 }
 
 function inferInsuranceForCareRoute(rule?: Rule) {
   if (!rule) {
-    return ["個人住院醫療 / VHIS-style inpatient coverage", "門診保險 if regular GP/specialist visits"];
+    return [
+      "個人住院醫療 / VHIS-style inpatient coverage",
+      "門診保險 if regular GP/specialist visits",
+    ];
   }
 
   const joined = rule.departments.join(" ").toLowerCase();
@@ -455,10 +518,17 @@ function inferInsuranceForCareRoute(rule?: Rule) {
   }
 
   if (joined.includes("physiotherapy") || joined.includes("orthopaedics")) {
-    return ["意外保險", "門診或物理治療保障", "住院醫療 if surgery/hospitalization risk"];
+    return [
+      "意外保險",
+      "門診或物理治療保障",
+      "住院醫療 if surgery/hospitalization risk",
+    ];
   }
 
-  return ["門診保險", "住院醫療 / VHIS-style coverage if hospital care may be needed"];
+  return [
+    "門診保險",
+    "住院醫療 / VHIS-style coverage if hospital care may be needed",
+  ];
 }
 
 function normalize(input: string) {
