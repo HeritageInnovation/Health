@@ -5,6 +5,7 @@ import {
   getSafePostAuthRedirectPath,
 } from "./auth-flow";
 import {
+  clearSession,
   getMemorySavePreference,
   getSafeConversationSessionTitle,
   sanitizeConversationMessageContent,
@@ -81,6 +82,28 @@ describe("auth and memory safety", () => {
         }),
       ]),
     );
+  });
+
+  it("removes saved recommendations before deleting the conversation session", async () => {
+    const { client, calls } = createMemoryClearClient();
+
+    await expect(clearSession("session-1", "user-1", client)).resolves.toBeUndefined();
+    expect(calls).toEqual([
+      {
+        table: "saved_recommendations",
+        filters: [
+          ["session_id", "session-1"],
+          ["user_id", "user-1"],
+        ],
+      },
+      {
+        table: "conversation_sessions",
+        filters: [
+          ["id", "session-1"],
+          ["user_id", "user-1"],
+        ],
+      },
+    ]);
   });
 
   it("redacts diagnosis-like inferred memory from summaries", () => {
@@ -195,6 +218,43 @@ function createMemoryPreferenceClient(preferenceValue?: boolean | null) {
       }
 
       throw new Error(`Unexpected table ${table}`);
+    },
+  } as unknown as MemoryClient;
+
+  return { client, calls };
+}
+
+function createMemoryClearClient() {
+  const calls: Array<{
+    table: string;
+    filters: Array<[string, string]>;
+  }> = [];
+
+  const client = {
+    from(table: string) {
+      if (table !== "saved_recommendations" && table !== "conversation_sessions") {
+        throw new Error(`Unexpected table ${table}`);
+      }
+
+      return {
+        delete() {
+          const call = {
+            table,
+            filters: [] as Array<[string, string]>,
+          };
+          calls.push(call);
+
+          return {
+            eq(column: string, value: string) {
+              call.filters.push([column, value]);
+              return this;
+            },
+            then(resolve: (value: { error: null }) => unknown) {
+              return Promise.resolve(resolve({ error: null }));
+            },
+          };
+        },
+      };
     },
   } as unknown as MemoryClient;
 
