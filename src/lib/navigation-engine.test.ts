@@ -62,6 +62,16 @@ describe("navigation engine", () => {
     expect(output).not.toMatch(/AIA|友邦|Bupa|AXA|安盛|Cigna|Prudential|保誠|Manulife|宏利/i);
   });
 
+  it("routes policy and claims wording through policy guidance even from the insurance entry point", () => {
+    const result = analyzeIntake("insurance", "我想理解住院保單的不保事項、等候期和索償流程。")
+;
+
+    expect(result.mode).toBe("policy");
+    expect(result.classification).toContain("索償");
+    expect(result.insuranceCategories).toContain("不保事項 / Exclusions");
+    expect(result.decisionChecklist.join(" ")).toContain("補交文件");
+  });
+
   it("keeps stroke coverage questions in insurance mode and adds an emergency-first warning", () => {
     const result = analyzeIntake("insurance", "中風保險通常賠咩？如果真係出事，保障會點計？");
 
@@ -80,7 +90,7 @@ describe("navigation engine", () => {
     expect(result.nextAction).toContain("請先立即求醫");
     expect(result.careRoute).toContain("先處理醫療安全");
     expect(result.matchedSignals).toEqual(
-      expect.arrayContaining(["中風", "胸痛"]),
+      expect.arrayContaining(["保單", "索償", "中風", "胸痛"]),
     );
   });
 
