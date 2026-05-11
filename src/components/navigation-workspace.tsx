@@ -297,7 +297,7 @@ export function NavigationWorkspace() {
       try {
         await clearSession(savedSessionId, user.id, supabase);
         setSavedSessionId(null);
-        setMemoryStatus("已清除今次雲端紀錄。Saved session cleared.");
+        setMemoryStatus("已清除今次已保存建議及對話紀錄。Saved recommendation and session cleared.");
       } catch (error) {
         setMemoryStatus(
           error instanceof Error
