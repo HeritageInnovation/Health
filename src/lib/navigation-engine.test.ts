@@ -34,6 +34,15 @@ describe("navigation engine", () => {
     expect(result.careRoute).toContain("小朋友");
   });
 
+  it("does not treat generic infant insurance planning as an emergency", () => {
+    const result = analyzeIntake("insurance", "想幫嬰兒比較住院醫療同門診保障。");
+
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("保險規劃");
+    expect(result.escalation).toContain("持牌保險顧問");
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+  });
+
   it("keeps insurance planning at category level for self-employed users", () => {
     const result = analyzeIntake("insurance", "我 35 歲，自僱，住香港，沒有僱主醫療，應該買咩保險？");
     const output = [
