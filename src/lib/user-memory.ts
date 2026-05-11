@@ -434,6 +434,17 @@ export async function clearSession(
   assertId(sessionId, "sessionId");
   assertUserId(userId);
 
+  const { error: recommendationError } = await supabase
+    .from("saved_recommendations")
+    .delete()
+    .eq("session_id", sessionId)
+    .eq("user_id", userId);
+
+  throwIfSupabaseError(
+    recommendationError,
+    "clear saved recommendations for session",
+  );
+
   const { error } = await supabase
     .from("conversation_sessions")
     .delete()
