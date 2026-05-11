@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   getAnonymousStartState,
+  getAuthCallbackFailureReason,
   getSafeAuthCallbackErrorMessage,
   getSafePostAuthRedirectPath,
 } from "./auth-flow";
@@ -39,6 +40,25 @@ describe("auth and memory safety", () => {
     expect(getSafePostAuthRedirectPath(String.raw`/\\evil.example/steal`)).toBe(
       "/",
     );
+  });
+
+  it("flags callback links that fail before a usable auth code arrives", () => {
+    expect(
+      getAuthCallbackFailureReason(new URLSearchParams("error=access_denied")),
+    ).toBe("access_denied");
+    expect(
+      getAuthCallbackFailureReason(
+        new URLSearchParams("error_description=Magic link expired"),
+      ),
+    ).toBe("Magic link expired");
+    expect(
+      getAuthCallbackFailureReason(new URLSearchParams("next=%2Fmemory")),
+    ).toContain("Authentication callback link is invalid");
+    expect(
+      getAuthCallbackFailureReason(
+        new URLSearchParams("code=abc123&next=%2Fmemory"),
+      ),
+    ).toBeNull();
   });
 
   it("turns callback auth failures into a safe user-facing message", () => {
