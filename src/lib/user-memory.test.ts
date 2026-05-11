@@ -5,6 +5,8 @@ import {
   getSafePostAuthRedirectPath,
 } from "./auth-flow";
 import {
+  getSafeConversationSessionTitle,
+  sanitizeConversationMessageContent,
   sanitizePreferencesForSummary,
   saveRecommendation,
   shouldIncludeInMemorySummary,
@@ -62,6 +64,34 @@ describe("auth and memory safety", () => {
 
     expect(summary.redacted).toBe(true);
     expect(summary.value).toBe("[sensitive medical detail hidden]");
+  });
+
+  it("does not store raw user free-text in saved conversation memory", () => {
+    const rawInput = "我胸口痛、氣促，而且昨晚突然暈低。";
+    const safeContent = sanitizeConversationMessageContent(
+      "user",
+      rawInput,
+      "emergency",
+    );
+
+    expect(safeContent).not.toContain("胸口痛");
+    expect(safeContent).not.toContain("氣促");
+    expect(safeContent).toContain("不會保存");
+  });
+
+  it("keeps assistant summaries but replaces raw session titles", () => {
+    const assistantSummary = "緊急醫療問題：請立即致電 999 或前往急症室。";
+
+    expect(
+      sanitizeConversationMessageContent(
+        "assistant",
+        assistantSummary,
+        "emergency",
+      ),
+    ).toBe(assistantSummary);
+    expect(getSafeConversationSessionTitle("symptom")).toBe(
+      "症狀導航紀錄 / Symptom navigation session",
+    );
   });
 
   it("uses RLS policies so users cannot access another user's saved recommendations", () => {
