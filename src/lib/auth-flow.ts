@@ -4,6 +4,8 @@ const DEFAULT_POST_AUTH_REDIRECT = "/";
 const SAFE_REDIRECT_ORIGIN = "https://health-os.local";
 const DEFAULT_AUTH_CALLBACK_ERROR =
   "登入未完成，請再試一次或要求新的登入連結。Authentication could not be completed. Please try again or request a new sign-in link.";
+const DEFAULT_AUTH_CALLBACK_MISSING_CODE_ERROR =
+  "登入連結無效、已過期或缺少驗證資料。Authentication callback link is invalid, expired, or missing verification data.";
 const MAX_AUTH_CALLBACK_ERROR_LENGTH = 240;
 
 export const anonymousModeCopy = {
@@ -49,6 +51,19 @@ export function getSafePostAuthRedirectPath(next: string | null | undefined) {
   } catch {
     return DEFAULT_POST_AUTH_REDIRECT;
   }
+}
+
+export function getAuthCallbackFailureReason(searchParams: URLSearchParams) {
+  const providerError =
+    searchParams.get("error_description") ?? searchParams.get("error");
+
+  if (typeof providerError === "string" && providerError.trim().length > 0) {
+    return providerError;
+  }
+
+  return searchParams.get("code")
+    ? null
+    : DEFAULT_AUTH_CALLBACK_MISSING_CODE_ERROR;
 }
 
 export function getSafeAuthCallbackErrorMessage(
