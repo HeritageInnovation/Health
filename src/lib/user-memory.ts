@@ -426,6 +426,29 @@ export async function getUserMemorySummary(
   };
 }
 
+export async function clearUserMemory(userId: string, supabase: MemoryClient) {
+  assertUserId(userId);
+
+  const deleteByUserId = async (table: string) => {
+    const { error } = await supabase.from(table).delete().eq("user_id", userId);
+
+    throwIfSupabaseError(error, `clear ${table}`);
+  };
+
+  await deleteByUserId("saved_recommendations");
+  await deleteByUserId("conversation_sessions");
+  await deleteByUserId("user_preferences");
+  await deleteByUserId("household_members");
+  await deleteByUserId("consent_events");
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .delete()
+    .eq("id", userId);
+
+  throwIfSupabaseError(profileError, "clear profile");
+}
+
 export async function clearSession(
   sessionId: string,
   userId: string,
