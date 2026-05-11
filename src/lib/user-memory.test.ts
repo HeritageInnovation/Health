@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { getAnonymousStartState } from "./auth-flow";
+import {
+  getAnonymousStartState,
+  getSafePostAuthRedirectPath,
+} from "./auth-flow";
 import {
   sanitizePreferencesForSummary,
   saveRecommendation,
@@ -14,6 +17,19 @@ describe("auth and memory safety", () => {
 
     expect(state.canStart).toBe(true);
     expect(state.requiresEmail).toBe(false);
+  });
+
+  it("keeps safe post-auth redirects inside the app", () => {
+    expect(getSafePostAuthRedirectPath("/dashboard?tab=memory#consent")).toBe(
+      "/dashboard?tab=memory#consent",
+    );
+    expect(getSafePostAuthRedirectPath(" https://evil.example/steal ")).toBe(
+      "/",
+    );
+    expect(getSafePostAuthRedirectPath("//evil.example/steal")).toBe("/");
+    expect(getSafePostAuthRedirectPath(String.raw`/\\evil.example/steal`)).toBe(
+      "/",
+    );
   });
 
   it("requires a user id before saving a recommendation", async () => {
