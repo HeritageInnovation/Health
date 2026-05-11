@@ -9,9 +9,11 @@ import {
   clearUserMemory,
   getMemorySavePreference,
   getSafeConversationSessionTitle,
+  isSafePreferenceValue,
   sanitizeConversationMessageContent,
   sanitizePreferencesForSummary,
   saveRecommendation,
+  saveUserPreference,
   setMemorySavePreference,
   shouldIncludeInMemorySummary,
   type MemoryClient,
@@ -79,6 +81,75 @@ describe("auth and memory safety", () => {
             user_id: "user-1",
             consent_type: "save_memory",
             granted: true,
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it("blocks sensitive identifiers and diagnosis-like text in preference values", async () => {
+    const { client } = createMemoryPreferenceClient();
+
+    expect(isSafePreferenceValue("AB123456(7)")).toEqual(
+      expect.objectContaining({ safe: false }),
+    );
+    expect(isSafePreferenceValue("用戶已確診哮喘")).toEqual(
+      expect.objectContaining({ safe: false }),
+    );
+
+    await expect(
+      saveUserPreference(
+        "user-1",
+        "care_context",
+        { note: "AB123456(7)" },
+        "explicit_user_choice",
+        client,
+      ),
+    ).rejects.toThrow("This preference value is not safe for memory storage");
+  });
+
+  it("blocks oversized free-text preference values", async () => {
+    const { client } = createMemoryPreferenceClient();
+    const longText = "a".repeat(161);
+
+    expect(isSafePreferenceValue(longText)).toEqual(
+      expect.objectContaining({ safe: false }),
+    );
+
+    await expect(
+      saveUserPreference(
+        "user-1",
+        "care_context",
+        longText,
+        "explicit_user_choice",
+        client,
+      ),
+    ).rejects.toThrow("free-text preference values are too long");
+  });
+
+  it("allows compact, non-sensitive structured preference values", async () => {
+    const { client, calls } = createMemoryPreferenceClient();
+
+    await expect(
+      saveUserPreference(
+        "user-1",
+        "care_preference",
+        { route: "public", language: "zh-Hant" },
+        "explicit_user_choice",
+        client,
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        preference_key: "care_preference",
+      }),
+    );
+
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          table: "user_preferences",
+          payload: expect.objectContaining({
+            preference_key: "care_preference",
           }),
         }),
       ]),
