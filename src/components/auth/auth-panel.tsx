@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth-flow";
 import { bootstrapAnonymousSession } from "@/lib/auth-session-bootstrap";
 import { getAuthRedirectTo } from "@/lib/supabase/client";
+import { getSafeUserVisibleErrorMessage } from "@/lib/user-visible-error";
 import type { Profile } from "@/lib/user-memory";
 import styles from "@/components/navigation-workspace.module.css";
 
@@ -72,8 +73,10 @@ export function AuthPanel({
 
       if (signInError || !data.user) {
         setError(
-          signInError?.message ??
+          getSafeUserVisibleErrorMessage(
+            signInError,
             "未能建立匿名帳戶。Could not create anonymous account.",
+          ),
         );
         setStatus(null);
         return;
@@ -86,9 +89,10 @@ export function AuthPanel({
         setStatus("已匿名開始，可選擇保存今次紀錄。Anonymous mode is ready.");
       } catch (error) {
         setError(
-          error instanceof Error
-            ? error.message
-            : "未能完成匿名開始。Could not finish anonymous start.",
+          getSafeUserVisibleErrorMessage(
+            error,
+            "未能完成匿名開始。Could not finish anonymous start.",
+          ),
         );
         setStatus(null);
       }
@@ -127,7 +131,14 @@ export function AuthPanel({
             });
 
       if (result.error) {
-        setError(result.error.message);
+        setError(
+          getSafeUserVisibleErrorMessage(
+            result.error,
+            isUpgrade
+              ? "未能發送帳戶升級確認。Could not send the account upgrade confirmation."
+              : "未能發送登入連結。Could not send the sign-in link.",
+          ),
+        );
         setStatus(null);
         return;
       }
@@ -159,7 +170,14 @@ export function AuthPanel({
             });
 
       if (result.error) {
-        setError(result.error.message);
+        setError(
+          getSafeUserVisibleErrorMessage(
+            result.error,
+            isUpgrade
+              ? "未能開始 Google 帳戶升級。Could not start the Google account upgrade."
+              : "未能開始 Google 登入。Could not start Google sign-in.",
+          ),
+        );
       }
     });
   }
