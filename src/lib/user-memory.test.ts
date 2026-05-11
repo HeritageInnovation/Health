@@ -6,6 +6,7 @@ import {
 } from "./auth-flow";
 import {
   clearSession,
+  clearUserMemory,
   getMemorySavePreference,
   getSafeConversationSessionTitle,
   sanitizeConversationMessageContent,
@@ -102,6 +103,38 @@ describe("auth and memory safety", () => {
           ["id", "session-1"],
           ["user_id", "user-1"],
         ],
+      },
+    ]);
+  });
+
+  it("clears anonymous user-owned memory before sign-out completes", async () => {
+    const { client, calls } = createMemoryPurgeClient();
+
+    await expect(clearUserMemory("user-1", client)).resolves.toBeUndefined();
+    expect(calls).toEqual([
+      {
+        table: "saved_recommendations",
+        filters: [["user_id", "user-1"]],
+      },
+      {
+        table: "conversation_sessions",
+        filters: [["user_id", "user-1"]],
+      },
+      {
+        table: "user_preferences",
+        filters: [["user_id", "user-1"]],
+      },
+      {
+        table: "household_members",
+        filters: [["user_id", "user-1"]],
+      },
+      {
+        table: "consent_events",
+        filters: [["user_id", "user-1"]],
+      },
+      {
+        table: "profiles",
+        filters: [["id", "user-1"]],
       },
     ]);
   });
@@ -233,6 +266,51 @@ function createMemoryClearClient() {
   const client = {
     from(table: string) {
       if (table !== "saved_recommendations" && table !== "conversation_sessions") {
+        throw new Error(`Unexpected table ${table}`);
+      }
+
+      return {
+        delete() {
+          const call = {
+            table,
+            filters: [] as Array<[string, string]>,
+          };
+          calls.push(call);
+
+          return {
+            eq(column: string, value: string) {
+              call.filters.push([column, value]);
+              return this;
+            },
+            then(resolve: (value: { error: null }) => unknown) {
+              return Promise.resolve(resolve({ error: null }));
+            },
+          };
+        },
+      };
+    },
+  } as unknown as MemoryClient;
+
+  return { client, calls };
+}
+
+function createMemoryPurgeClient() {
+  const calls: Array<{
+    table: string;
+    filters: Array<[string, string]>;
+  }> = [];
+  const allowedTables = new Set([
+    "saved_recommendations",
+    "conversation_sessions",
+    "user_preferences",
+    "household_members",
+    "consent_events",
+    "profiles",
+  ]);
+
+  const client = {
+    from(table: string) {
+      if (!allowedTables.has(table)) {
         throw new Error(`Unexpected table ${table}`);
       }
 
