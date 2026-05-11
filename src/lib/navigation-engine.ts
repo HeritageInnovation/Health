@@ -64,8 +64,6 @@ const emergencyTerms = [
   "self harm",
   "sudden severe headache",
   "突然劇烈頭痛",
-  "嬰兒",
-  "infant",
 ];
 
 const sameDayTerms = [
