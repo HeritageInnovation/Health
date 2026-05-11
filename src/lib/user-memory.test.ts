@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   getAnonymousStartState,
+  getSafeAuthCallbackErrorMessage,
   getSafePostAuthRedirectPath,
 } from "./auth-flow";
 import {
@@ -38,6 +39,15 @@ describe("auth and memory safety", () => {
     expect(getSafePostAuthRedirectPath(String.raw`/\\evil.example/steal`)).toBe(
       "/",
     );
+  });
+
+  it("turns callback auth failures into a safe user-facing message", () => {
+    expect(getSafeAuthCallbackErrorMessage(null)).toBeNull();
+    expect(getSafeAuthCallbackErrorMessage("   ")).toBeNull();
+    expect(
+      getSafeAuthCallbackErrorMessage(" Token has expired \n please request a new link. "),
+    ).toContain("Token has expired please request a new link.");
+    expect(getSafeAuthCallbackErrorMessage("x".repeat(300))).toContain("...");
   });
 
   it("requires a user id before saving a recommendation", async () => {
