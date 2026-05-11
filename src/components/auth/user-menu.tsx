@@ -1,7 +1,9 @@
 "use client";
 
 import { LogOut, ShieldAlert, Trash2, UserRound } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { getSafeAuthCallbackErrorMessage } from "@/lib/auth-flow";
 import type { Profile } from "@/lib/user-memory";
 import styles from "@/components/navigation-workspace.module.css";
 
@@ -26,7 +28,27 @@ export function UserMenu({
   onClearSession,
   onUpgradeAccount,
 }: UserMenuProps) {
+  const [authError, setAuthError] = useState<string | null>(null);
   const isAnonymous = Boolean(user?.is_anonymous || profile?.is_anonymous);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    const nextError = getSafeAuthCallbackErrorMessage(
+      url.searchParams.get("auth_error"),
+    );
+
+    if (!nextError) {
+      return;
+    }
+
+    setAuthError(nextError);
+    url.searchParams.delete("auth_error");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   return (
     <div className={styles.userMenu} aria-label="User profile">
@@ -70,6 +92,8 @@ export function UserMenu({
           </span>
         </div>
       ) : null}
+
+      {authError ? <p className={styles.errorText}>{authError}</p> : null}
 
       <div className={styles.userActions}>
         {isAnonymous ? (
