@@ -1,12 +1,13 @@
 "use client";
 
 import { Mail, ShieldCheck, UserRoundPlus } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import {
   GOOGLE_OAUTH_ENABLED,
   anonymousModeCopy,
   getAnonymousStartState,
+  getSafeAuthCallbackErrorMessage,
 } from "@/lib/auth-flow";
 import { bootstrapAnonymousSession } from "@/lib/auth-session-bootstrap";
 import { getAuthRedirectTo } from "@/lib/supabase/client";
@@ -35,6 +36,26 @@ export function AuthPanel({
   const isUpgrade = variant === "upgrade" || Boolean(user?.is_anonymous);
   const anonymousStart = getAnonymousStartState(email);
   const isDisabled = !supabase || isPending;
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    const nextError = getSafeAuthCallbackErrorMessage(
+      url.searchParams.get("auth_error"),
+    );
+
+    if (!nextError) {
+      return;
+    }
+
+    setStatus(null);
+    setError(nextError);
+    url.searchParams.delete("auth_error");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   function startAnonymous() {
     if (!supabase) {
