@@ -34,6 +34,7 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   clearSession,
+  clearUserMemory,
   getMemorySavePreference,
   getOrCreateProfile,
   getSafetyLevel,
@@ -272,17 +273,41 @@ export function NavigationWorkspace() {
   }
 
   function handleSignOut() {
-    if (!supabase) {
+    if (!supabase || !user) {
       return;
     }
 
-    void supabase.auth.signOut().then(() => {
-      setUser(null);
-      setProfile(null);
-      setSaveHistory(false);
-      setShowUpgrade(false);
-      setSavedSessionId(null);
-      setMemoryStatus("已登出。Signed out.");
+    const isAnonymousUser = Boolean(user.is_anonymous || profile?.is_anonymous);
+
+    startSavingMemory(async () => {
+      try {
+        if (isAnonymousUser) {
+          await clearUserMemory(user.id, supabase);
+        }
+
+        const { error } = await supabase.auth.signOut();
+
+        if (error) {
+          throw error;
+        }
+
+        setUser(null);
+        setProfile(null);
+        setSaveHistory(false);
+        setShowUpgrade(false);
+        setSavedSessionId(null);
+        setMemoryStatus(
+          isAnonymousUser
+            ? "已登出，並清除匿名保存紀錄。Signed out and cleared anonymous saved memory."
+            : "已登出。Signed out.",
+        );
+      } catch (error) {
+        setMemoryStatus(
+          error instanceof Error
+            ? `未能安全登出 / Could not sign out safely: ${error.message}`
+            : "未能安全登出 / Could not sign out safely.",
+        );
+      }
     });
   }
 
