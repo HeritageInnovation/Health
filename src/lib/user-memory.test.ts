@@ -5,10 +5,12 @@ import {
   getSafePostAuthRedirectPath,
 } from "./auth-flow";
 import {
+  getMemorySavePreference,
   getSafeConversationSessionTitle,
   sanitizeConversationMessageContent,
   sanitizePreferencesForSummary,
   saveRecommendation,
+  setMemorySavePreference,
   shouldIncludeInMemorySummary,
   type MemoryClient,
 } from "./user-memory";
@@ -46,6 +48,39 @@ describe("auth and memory safety", () => {
         {} as MemoryClient,
       ),
     ).rejects.toThrow("userId is required");
+  });
+
+  it("defaults memory saving to off until the user explicitly opts in", async () => {
+    const { client } = createMemoryPreferenceClient();
+
+    await expect(getMemorySavePreference("user-1", client)).resolves.toBeNull();
+  });
+
+  it("persists memory save opt-in with a matching consent event", async () => {
+    const { client, calls } = createMemoryPreferenceClient();
+
+    await expect(setMemorySavePreference("user-1", true, client)).resolves.toBe(true);
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          table: "user_preferences",
+          payload: expect.objectContaining({
+            user_id: "user-1",
+            preference_key: "memory_save_enabled",
+            preference_value: true,
+            source: "explicit_user_choice",
+          }),
+        }),
+        expect.objectContaining({
+          table: "consent_events",
+          payload: expect.objectContaining({
+            user_id: "user-1",
+            consent_type: "save_memory",
+            granted: true,
+          }),
+        }),
+      ]),
+    );
   });
 
   it("redacts diagnosis-like inferred memory from summaries", () => {
@@ -108,3 +143,60 @@ describe("auth and memory safety", () => {
     expect(migration).not.toMatch(/grant\s+select[\s\S]*\s+to\s+anon/i);
   });
 });
+
+function createMemoryPreferenceClient(preferenceValue?: boolean | null) {
+  const calls: Array<{ table: string; payload: Record<string, unknown> }> = [];
+
+  const client = {
+    from(table: string) {
+      if (table === "user_preferences") {
+        return {
+          select() {
+            return this;
+          },
+          eq() {
+            return this;
+          },
+          maybeSingle: async () => ({
+            data:
+              preferenceValue === undefined
+                ? null
+                : { preference_value: preferenceValue },
+            error: null,
+          }),
+          upsert(payload: Record<string, unknown>) {
+            calls.push({ table, payload });
+
+            return {
+              select() {
+                return {
+                  single: async () => ({ data: payload, error: null }),
+                };
+              },
+            };
+          },
+        };
+      }
+
+      if (table === "consent_events") {
+        return {
+          insert(payload: Record<string, unknown>) {
+            calls.push({ table, payload });
+
+            return {
+              select() {
+                return {
+                  single: async () => ({ data: payload, error: null }),
+                };
+              },
+            };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected table ${table}`);
+    },
+  } as unknown as MemoryClient;
+
+  return { client, calls };
+}
