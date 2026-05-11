@@ -18,6 +18,18 @@ describe("navigation engine", () => {
     expect(result.possibleDepartments).toContain("急症室 / A&E");
   });
 
+  it("escalates common Cantonese emergency breathing phrasing", () => {
+    const result = analyzeIntake("medical", "我依家呼吸唔到，應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["依家", "呼吸唔到", "應該點做"]),
+    );
+  });
+
   it("routes persistent itchy skin to GP and possible dermatology", () => {
     const result = analyzeIntake("medical", "我皮膚痕咗兩個星期，應該睇咩醫生？");
 
@@ -103,6 +115,21 @@ describe("navigation engine", () => {
     expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
     expect(result.matchedSignals).toEqual(
       expect.arrayContaining(["而家", "呼吸困難", "胸痛", "應該點做"]),
+    );
+  });
+
+  it("escalates English live-emergency breathing wording even inside insurance questions", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "I can't breathe right now. Will my insurance cover A&E?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["can't breathe", "right now"]),
     );
   });
 
