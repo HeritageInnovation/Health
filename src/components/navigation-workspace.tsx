@@ -34,13 +34,16 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   clearSession,
+  getMemorySavePreference,
   getOrCreateProfile,
   getSafetyLevel,
   mapRecommendationMode,
+  recordConsentEvent,
   saveConversationMessage,
   saveConversationSession,
   saveRecommendation,
   saveUserPreference,
+  setMemorySavePreference,
   type ConversationMode,
   type Profile,
 } from "@/lib/user-memory";
@@ -156,17 +159,22 @@ export function NavigationWorkspace() {
 
     async function syncUser(nextUser: User | null) {
       setUser(nextUser);
-      setSaveHistory(Boolean(nextUser));
 
       if (!nextUser || !supabase) {
+        setSaveHistory(false);
         setProfile(null);
         return;
       }
 
       try {
-        const nextProfile = await getOrCreateProfile(nextUser, supabase);
+        const [nextProfile, rememberedSaveHistory] = await Promise.all([
+          getOrCreateProfile(nextUser, supabase),
+          getMemorySavePreference(nextUser.id, supabase),
+        ]);
+
         if (isMounted) {
           setProfile(nextProfile);
+          setSaveHistory(rememberedSaveHistory ?? false);
         }
       } catch (error) {
         if (isMounted) {
@@ -233,6 +241,34 @@ export function NavigationWorkspace() {
       setResult(analyzeIntake(activeCard.mode, trimmedInput));
       setIsSubmitting(false);
     }, 520);
+  }
+
+  function handleSaveHistoryChange(enabled: boolean) {
+    if (!supabase || !user) {
+      setSaveHistory(false);
+      setMemoryStatus(
+        "請先匿名開始或登入，之後再選擇是否保存。Start anonymously or sign in before changing memory settings.",
+      );
+      return;
+    }
+
+    startSavingMemory(async () => {
+      try {
+        await setMemorySavePreference(user.id, enabled, supabase);
+        setSaveHistory(enabled);
+        setMemoryStatus(
+          enabled
+            ? "已開啟保存紀錄。之後仍需按保存，今次建議才會記住。Save history is on. This recommendation is still saved only when you tap Save."
+            : "已關閉保存紀錄。之後不會保存新的建議，除非你再次開啟。Save history is off until you turn it on again.",
+        );
+      } catch (error) {
+        setMemoryStatus(
+          error instanceof Error
+            ? `未能更新保存設定 / Could not update memory setting: ${error.message}`
+            : "未能更新保存設定 / Could not update memory setting.",
+        );
+      }
+    });
   }
 
   function handleSignOut() {
@@ -319,18 +355,7 @@ export function NavigationWorkspace() {
             "explicit_user_choice",
             supabase,
           ),
-          supabase
-            .from("consent_events")
-            .insert({
-              user_id: user.id,
-              consent_type: "save_memory",
-              granted: true,
-            })
-            .then(({ error }) => {
-              if (error) {
-                throw new Error(`Could not save consent event: ${error.message}`);
-              }
-            }),
+          recordConsentEvent(user.id, "save_memory", true, supabase),
         ]);
 
         await saveRecommendation(user.id, session.id, result, supabase);
@@ -556,7 +581,7 @@ export function NavigationWorkspace() {
               onUserReady={setUser}
               onProfileReady={(nextProfile) => {
                 setProfile(nextProfile);
-                setSaveHistory(true);
+                setSaveHistory(false);
                 setShowUpgrade(false);
               }}
             />
@@ -566,7 +591,7 @@ export function NavigationWorkspace() {
               profile={profile}
               saveHistory={saveHistory}
               hasSavedSession={Boolean(savedSessionId)}
-              onToggleSaveHistory={setSaveHistory}
+              onToggleSaveHistory={handleSaveHistoryChange}
               onSignOut={handleSignOut}
               onClearSession={handleClearSession}
               onUpgradeAccount={() => setShowUpgrade(true)}
