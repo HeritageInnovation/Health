@@ -26,6 +26,11 @@ import {
   getDoctorAvatarState,
 } from "@/components/virtual-doctor-avatar";
 import { analyzeIntake, type IntakeMode, type Recommendation } from "@/lib/navigation-engine";
+import {
+  EMERGENCY_ESCALATION_COPY,
+  INSURANCE_SAFETY_DISCLAIMER,
+  MEDICAL_SAFETY_DISCLAIMER,
+} from "@/lib/safety-copy";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   clearSession,
@@ -510,8 +515,12 @@ export function NavigationWorkspace() {
         <a className={styles.emergencyBar} href="tel:999" aria-label="Call 999 for emergency">
           <AlertTriangle size={26} aria-hidden="true" />
           <span>
-            如有胸痛、呼吸困難或其他緊急情況，請立即前往急症室
-            <small>For emergencies, go to A&E immediately.</small>
+            {EMERGENCY_ESCALATION_COPY}
+            <small>
+              For chest pain, severe breathing trouble, stroke signs, unconsciousness,
+              severe bleeding, severe allergic reactions, or other emergencies, call 999
+              or go to A&amp;E.
+            </small>
           </span>
           <ArrowRight size={21} aria-hidden="true" />
         </a>
@@ -614,12 +623,9 @@ export function NavigationWorkspace() {
               <p>Safety boundaries</p>
             </div>
           </div>
-          <p className={styles.referenceCopy}>
-            本服務只提供導航、科別方向及保險類別教育，不作診斷、不處方、不推薦指定保險公司或產品。
-          </p>
-          <p className={styles.referenceCopy}>
-            Product purchase decisions require a future licensed insurance adviser workflow.
-          </p>
+          <p className={styles.referenceCopy}>{MEDICAL_SAFETY_DISCLAIMER}</p>
+          <p className={styles.referenceCopy}>{EMERGENCY_ESCALATION_COPY}</p>
+          <p className={styles.referenceCopy}>{INSURANCE_SAFETY_DISCLAIMER}</p>
         </div>
       </section>
     </main>
