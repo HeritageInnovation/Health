@@ -1,3 +1,5 @@
+import { getSafeUserVisibleErrorMessage } from "./user-visible-error";
+
 export const GOOGLE_OAUTH_ENABLED = false;
 
 const DEFAULT_POST_AUTH_REDIRECT = "/";
@@ -6,7 +8,6 @@ const DEFAULT_AUTH_CALLBACK_ERROR =
   "登入未完成，請再試一次或要求新的登入連結。Authentication could not be completed. Please try again or request a new sign-in link.";
 const DEFAULT_AUTH_CALLBACK_MISSING_CODE_ERROR =
   "登入連結無效、已過期或缺少驗證資料。Authentication callback link is invalid, expired, or missing verification data.";
-const MAX_AUTH_CALLBACK_ERROR_LENGTH = 240;
 
 export const anonymousModeCopy = {
   requiresEmail: false,
@@ -79,11 +80,15 @@ export function getSafeAuthCallbackErrorMessage(
     return null;
   }
 
-  const truncated = normalized.slice(0, MAX_AUTH_CALLBACK_ERROR_LENGTH);
-  const detail =
-    normalized.length > MAX_AUTH_CALLBACK_ERROR_LENGTH
-      ? `${truncated}...`
-      : truncated;
+  if (
+    normalized === DEFAULT_AUTH_CALLBACK_MISSING_CODE_ERROR ||
+    normalized.startsWith(DEFAULT_AUTH_CALLBACK_ERROR)
+  ) {
+    return normalized;
+  }
 
-  return `${DEFAULT_AUTH_CALLBACK_ERROR} ${detail}`;
+  return getSafeUserVisibleErrorMessage(
+    normalized,
+    DEFAULT_AUTH_CALLBACK_ERROR,
+  );
 }
