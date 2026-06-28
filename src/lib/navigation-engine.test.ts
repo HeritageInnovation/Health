@@ -30,6 +30,34 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates accidental ingestion wording without follow-up questions", () => {
+    const result = analyzeIntake("medical", "小朋友啱啱誤服清潔劑，應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["啱啱", "誤服", "應該點做"]),
+    );
+  });
+
+  it("escalates live medication overdose wording inside insurance questions", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "I just took too much medicine. Will my insurance cover A&E?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["took too much medicine"]),
+    );
+  });
+
   it("routes persistent itchy skin to GP and possible dermatology", () => {
     const result = analyzeIntake("medical", "我皮膚痕咗兩個星期，應該睇咩醫生？");
 
