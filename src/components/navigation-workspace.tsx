@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Bot,
   ClipboardCheck,
+  FileText,
   HeartPulse,
   Hospital,
   Languages,
@@ -50,7 +51,7 @@ import {
 } from "@/lib/user-memory";
 import styles from "./navigation-workspace.module.css";
 
-type ActionId = "symptom" | "department" | "insurance";
+type ActionId = "symptom" | "department" | "insurance" | "policy";
 type CarePreference = "public" | "private";
 
 const actionCards: Array<{
@@ -59,7 +60,7 @@ const actionCards: Array<{
   titleZh: string;
   titleEn: string;
   bodyZh: string;
-  accent: "teal" | "blue" | "violet";
+  accent: "teal" | "blue" | "violet" | "amber";
   icon: LucideIcon;
 }> = [
   {
@@ -89,12 +90,22 @@ const actionCards: Array<{
     accent: "violet",
     icon: ShieldCheck,
   },
+  {
+    id: "policy",
+    mode: "policy",
+    titleZh: "保單解讀",
+    titleEn: "Policy & Claims",
+    bodyZh: "整理條款、索償及\n不保事項問題",
+    accent: "amber",
+    icon: FileText,
+  },
 ];
 
 const examples: Record<ActionId, string> = {
   symptom: "例如：頭痛兩日、發燒、保險索償問題...",
   department: "例如：小朋友發燒出疹，應該睇咩科？",
   insurance: "例如：自僱，沒有僱主醫療，想了解保障類型...",
+  policy: "例如：想理解住院保單的不保事項、等候期和索償流程...",
 };
 
 const navItems = [
