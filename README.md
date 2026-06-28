@@ -19,6 +19,7 @@ not a doctor, insurer, broker, or licensed insurance intermediary.
 ## Safety Rules
 
 - Level 1 emergency signals stop intake and escalate to 999 or Accident & Emergency.
+- Immediate self-harm, overdose, or suicide-risk wording is treated as Level 1 and escalates to 999 or Accident & Emergency.
 - Level 2 same-day signals recommend same-day medical assessment.
 - Level 3 non-urgent symptoms route to GP or family doctor first, with possible specialist follow-up.
 - Level 4 planning questions cover prevention, insurance, claims, and document explanation.
