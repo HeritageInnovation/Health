@@ -89,8 +89,22 @@ const emergencyTerms = [
   "cut myself",
   "cut my wrist",
   "overdose",
+  "medication overdose",
   "服藥過量",
   "食藥過量",
+  "中毒",
+  "誤服",
+  "误服",
+  "食錯藥",
+  "食错药",
+  "食錯咗藥",
+  "poisoning",
+  "poisoned",
+  "accidental ingestion",
+  "ingested",
+  "took too much medicine",
+  "took too much medication",
+  "took too many pills",
   "sudden severe headache",
   "突然劇烈頭痛",
 ];
@@ -111,8 +125,18 @@ const emergencyOverrideTerms = [
   "cut myself",
   "cut my wrist",
   "overdose",
+  "medication overdose",
   "服藥過量",
   "食藥過量",
+  "誤服",
+  "误服",
+  "食錯藥",
+  "食错药",
+  "食錯咗藥",
+  "accidental ingestion",
+  "took too much medicine",
+  "took too much medication",
+  "took too many pills",
 ];
 
 const activeEmergencyContextTerms = [
@@ -362,7 +386,7 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
       disclaimer: medicalDisclaimer(),
       audit: [
         emergencyOverrideMatches.length > 0
-          ? "Detected emergency self-harm or overdose wording."
+          ? "Detected emergency self-harm, overdose, or accidental ingestion wording."
           : "Detected emergency red-flag wording.",
         hasActiveEmergencyContext
           ? "Detected live-symptom wording inside insurance context and prioritized emergency care."
