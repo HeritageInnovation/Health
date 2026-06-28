@@ -102,7 +102,7 @@ const actionCards: Array<{
 ];
 
 const examples: Record<ActionId, string> = {
-  symptom: "例如：頭痛兩日、發燒、保險索償問題...",
+  symptom: "例如：頭痛兩日、發燒、皮膚痕...",
   department: "例如：小朋友發燒出疹，應該睇咩科？",
   insurance: "例如：自僱，沒有僱主醫療，想了解保障類型...",
   policy: "例如：想理解住院保單的不保事項、等候期和索償流程...",
@@ -136,6 +136,73 @@ const coverageRows = [
   "牙科 / Dental",
   "旅遊 / Travel",
 ];
+
+const carePreferenceCopy: Record<
+  CarePreference,
+  Record<IntakeMode, { nextAction: string; checklist: string; audit: string }>
+> = {
+  public: {
+    medical: {
+      nextAction:
+        "公營優先：非緊急情況可先留意普通科門診或家庭醫生評估；如出現危險徵兆，仍應即時改去急症室 / A&E。",
+      checklist: "公營路徑：準備身份證明、過往紀錄和轉介/覆診資料，並預留輪候時間。",
+      audit: "Applied public-care preference guidance.",
+    },
+    insurance: {
+      nextAction:
+        "公營優先：保障規劃可先假設公營服務為主要路徑，再評估是否需要住院、門診或私家後備保障。",
+      checklist: "公營使用情境：核對保單是否補足私家住院、門診、藥物或第二意見需要。",
+      audit: "Applied public-care preference guidance.",
+    },
+    policy: {
+      nextAction:
+        "公營優先：解讀保單時可特別核對公營轉私家、私家檢查、藥物及收據要求。",
+      checklist: "公營相關文件：保存轉介信、覆診紙、檢查報告和任何自費項目收據。",
+      audit: "Applied public-care preference guidance.",
+    },
+  },
+  private: {
+    medical: {
+      nextAction:
+        "私家優先：非緊急情況可先約私家普通科或診所；如需要專科，先確認是否要轉介信、網絡診所或預先批核。",
+      checklist: "私家路徑：先查診所/醫院網絡、預先批核、自付額、共同保險和收據要求。",
+      audit: "Applied private-care preference guidance.",
+    },
+    insurance: {
+      nextAction:
+        "私家優先：保障規劃應重點比較私家醫院網絡、病房級別、預先批核、自付額和共同保險。",
+      checklist: "私家使用情境：核對網絡醫院、專科門診、預先批核、墊底費和索償文件要求。",
+      audit: "Applied private-care preference guidance.",
+    },
+    policy: {
+      nextAction:
+        "私家優先：解讀保單時可先核對網絡限制、專科轉介、預先批核、收據和診斷證明要求。",
+      checklist: "私家索償文件：保存醫生轉介、診斷證明、分項收據、預先批核和出院摘要。",
+      audit: "Applied private-care preference guidance.",
+    },
+  },
+};
+
+function applyCarePreference(result: Recommendation, carePreference: CarePreference): Recommendation {
+  if (result.urgency.level === 1) {
+    return result;
+  }
+
+  const preferenceCopy = carePreferenceCopy[carePreference][result.mode];
+
+  return {
+    ...result,
+    nextAction: result.nextAction.includes(preferenceCopy.nextAction)
+      ? result.nextAction
+      : `${result.nextAction} ${preferenceCopy.nextAction}`,
+    decisionChecklist: uniqueList([...result.decisionChecklist, preferenceCopy.checklist]),
+    audit: uniqueList([...result.audit, preferenceCopy.audit]),
+  };
+}
+
+function uniqueList<T>(items: T[]) {
+  return Array.from(new Set(items));
+}
 
 export function NavigationWorkspace() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
@@ -250,7 +317,9 @@ export function NavigationWorkspace() {
     setMemoryStatus(null);
 
     window.setTimeout(() => {
-      setResult(analyzeIntake(activeCard.mode, trimmedInput));
+      const recommendation = analyzeIntake(activeCard.mode, trimmedInput);
+
+      setResult(applyCarePreference(recommendation, carePreference));
       setIsSubmitting(false);
     }, 520);
   }
@@ -437,13 +506,14 @@ export function NavigationWorkspace() {
             <button
               className={styles.controlPill}
               type="button"
-              aria-pressed={carePreference === "public"}
+              aria-label="切換公立或私家醫療偏好"
+              aria-pressed={carePreference === "private"}
               onClick={() => setCarePreference(carePreference === "public" ? "private" : "public")}
             >
               <Hospital size={20} aria-hidden="true" />
               <span>
-                公立 / 私家
-                <small>Public / Private</small>
+                {carePreference === "public" ? "公立優先" : "私家優先"}
+                <small>{carePreference === "public" ? "Public first" : "Private first"}</small>
               </span>
             </button>
             <button className={styles.controlPill} type="button">
