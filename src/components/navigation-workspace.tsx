@@ -736,6 +736,10 @@ function ResultCard({
       <ResultBlock icon={Hospital} title="科別方向 / Department direction" content={result.careRoute} />
       <ResultList title="可能相關 / Possible options" items={result.possibleDepartments} />
       <ResultList title="保險分類 / Insurance categories" items={result.insuranceCategories} />
+      <ResultList title="準備清單 / What to prepare" items={result.decisionChecklist} />
+      {!isEmergency ? (
+        <ResultList title="下一步可回答 / Follow-up prompts" items={result.questions} />
+      ) : null}
 
       <div className={styles.escalationBox}>
         <AlertTriangle size={18} aria-hidden="true" />
@@ -777,6 +781,10 @@ function ResultBlock({
 }
 
 function ResultList({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) {
+    return null;
+  }
+
   return (
     <div className={styles.resultList}>
       <h3>{title}</h3>
