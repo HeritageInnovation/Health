@@ -751,6 +751,8 @@ function ResultCard({
       {!isEmergency ? (
         <ResultList title="下一步可回答 / Follow-up prompts" items={result.questions} />
       ) : null}
+      <ResultList title="判斷依據 / Safety reasoning" items={result.audit} />
+      <ResultList title="識別到的訊號 / Detected signals" items={result.matchedSignals} />
 
       <div className={styles.escalationBox}>
         <AlertTriangle size={18} aria-hidden="true" />
