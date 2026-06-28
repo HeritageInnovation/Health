@@ -46,6 +46,15 @@ describe("navigation engine", () => {
     expect(result.careRoute).toContain("小朋友");
   });
 
+  it("routes stress and panic wording to mental wellness support", () => {
+    const result = analyzeIntake("medical", "最近工作壓力好大，失眠同 panic attack，應該點樣求助？");
+
+    expect(result.urgency.level).toBe(3);
+    expect(result.possibleDepartments.join(" ")).toContain("Psychology or Counselling");
+    expect(result.careRoute).toContain("普通科");
+    expect(result.matchedSignals).toEqual(expect.arrayContaining(["失眠", "壓力", "panic"]));
+  });
+
   it("does not treat generic infant insurance planning as an emergency", () => {
     const result = analyzeIntake("insurance", "想幫嬰兒比較住院醫療同門診保障。");
 
