@@ -74,6 +74,27 @@ describe("navigation engine", () => {
     expect(result.careRoute).toContain("小朋友");
   });
 
+  it("routes Cantonese infant fever wording to same-day paediatric care", () => {
+    const result = analyzeIntake("medical", "我個BB發燒，今日應該點安排？");
+
+    expect(result.urgency.level).toBe(2);
+    expect(result.classification).toContain("Same-day care");
+    expect(result.possibleDepartments.join(" ")).toContain("兒科");
+    expect(result.careRoute).toContain("小朋友");
+    expect(result.matchedSignals).toEqual(expect.arrayContaining(["bb發燒", "bb"]));
+  });
+
+  it("routes English newborn fever wording to same-day paediatric care", () => {
+    const result = analyzeIntake("medical", "My newborn has a fever and is not feeding well.");
+
+    expect(result.urgency.level).toBe(2);
+    expect(result.classification).toContain("Same-day care");
+    expect(result.possibleDepartments.join(" ")).toContain("Paediatrics");
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["newborn has a fever", "newborn"]),
+    );
+  });
+
   it("routes stress and panic wording to mental wellness support", () => {
     const result = analyzeIntake("medical", "最近工作壓力好大，失眠同 panic attack，應該點樣求助？");
 
