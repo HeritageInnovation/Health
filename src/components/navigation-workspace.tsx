@@ -302,6 +302,20 @@ export function NavigationWorkspace() {
     setMemoryStatus(null);
   }
 
+  function handleCarePreferenceToggle() {
+    const nextPreference = carePreference === "public" ? "private" : "public";
+    const trimmedInput = input.trim();
+
+    setCarePreference(nextPreference);
+    setSavedSessionId(null);
+    setMemoryStatus(null);
+
+    if (result && trimmedInput) {
+      const recommendation = analyzeIntake(activeCard.mode, trimmedInput);
+      setResult(applyCarePreference(recommendation, nextPreference));
+    }
+  }
+
   function handleSubmit() {
     const trimmedInput = input.trim();
 
@@ -508,7 +522,7 @@ export function NavigationWorkspace() {
               type="button"
               aria-label="切換公立或私家醫療偏好"
               aria-pressed={carePreference === "private"}
-              onClick={() => setCarePreference(carePreference === "public" ? "private" : "public")}
+              onClick={handleCarePreferenceToggle}
             >
               <Hospital size={20} aria-hidden="true" />
               <span>
