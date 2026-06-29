@@ -53,6 +53,7 @@ import styles from "./navigation-workspace.module.css";
 
 type ActionId = "symptom" | "department" | "insurance" | "policy";
 type CarePreference = "public" | "private";
+type InterfaceLanguage = "zh" | "en";
 
 const actionCards: Array<{
   id: ActionId;
@@ -101,11 +102,23 @@ const actionCards: Array<{
   },
 ];
 
-const examples: Record<ActionId, string> = {
-  symptom: "例如：頭痛兩日、發燒、皮膚痕...",
-  department: "例如：小朋友發燒出疹，應該睇咩科？",
-  insurance: "例如：自僱，沒有僱主醫療，想了解保障類型...",
-  policy: "例如：想理解住院保單的不保事項、等候期和索償流程...",
+const examples: Record<ActionId, Record<InterfaceLanguage, string>> = {
+  symptom: {
+    zh: "例如：頭痛兩日、發燒、皮膚痕...",
+    en: "Example: Headache for two days, fever, itchy skin...",
+  },
+  department: {
+    zh: "例如：小朋友發燒出疹，應該睇咩科？",
+    en: "Example: My child has fever and a rash. Which department should we try?",
+  },
+  insurance: {
+    zh: "例如：自僱，沒有僱主醫療，想了解保障類型...",
+    en: "Example: I am self-employed and want to understand coverage options...",
+  },
+  policy: {
+    zh: "例如：想理解住院保單的不保事項、等候期和索償流程...",
+    en: "Example: Help me understand exclusions, waiting periods, and claims steps...",
+  },
 };
 
 const navItems = [
@@ -183,6 +196,17 @@ const carePreferenceCopy: Record<
   },
 };
 
+const inputHeadingCopy: Record<InterfaceLanguage, { title: string; subtitle: string }> = {
+  zh: {
+    title: "請描述你的症狀或保險問題",
+    subtitle: "Describe your symptom or insurance question",
+  },
+  en: {
+    title: "Describe your symptom or insurance question",
+    subtitle: "請描述你的症狀或保險問題",
+  },
+};
+
 function applyCarePreference(result: Recommendation, carePreference: CarePreference): Recommendation {
   if (result.urgency.level === 1) {
     return result;
@@ -209,6 +233,7 @@ export function NavigationWorkspace() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [activeAction, setActiveAction] = useState<ActionId>("symptom");
   const [carePreference, setCarePreference] = useState<CarePreference>("public");
+  const [interfaceLanguage, setInterfaceLanguage] = useState<InterfaceLanguage>("zh");
   const [input, setInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -223,6 +248,7 @@ export function NavigationWorkspace() {
   const [isSavingMemory, startSavingMemory] = useTransition();
 
   const activeCard = actionCards.find((card) => card.id === activeAction) ?? actionCards[0];
+  const activeInputHeading = inputHeadingCopy[interfaceLanguage];
   const avatarState = getDoctorAvatarState({
     result,
     isSubmitting,
@@ -314,6 +340,10 @@ export function NavigationWorkspace() {
       const recommendation = analyzeIntake(activeCard.mode, trimmedInput);
       setResult(applyCarePreference(recommendation, nextPreference));
     }
+  }
+
+  function handleLanguageToggle() {
+    setInterfaceLanguage((current) => (current === "zh" ? "en" : "zh"));
   }
 
   function handleSubmit() {
@@ -451,7 +481,7 @@ export function NavigationWorkspace() {
           user.id,
           sessionMode,
           input.slice(0, 72),
-          "zh-Hant",
+          interfaceLanguage === "zh" ? "zh-Hant" : "en",
           supabase,
         );
         const safetyLevel = getSafetyLevel(result);
@@ -466,7 +496,13 @@ export function NavigationWorkspace() {
             safetyLevel,
             supabase,
           ),
-          saveUserPreference(user.id, "preferred_language", "zh-Hant", "explicit_user_choice", supabase),
+          saveUserPreference(
+            user.id,
+            "preferred_language",
+            interfaceLanguage === "zh" ? "zh-Hant" : "en",
+            "explicit_user_choice",
+            supabase,
+          ),
           saveUserPreference(
             user.id,
             "care_preference",
@@ -530,11 +566,21 @@ export function NavigationWorkspace() {
                 <small>{carePreference === "public" ? "Public first" : "Private first"}</small>
               </span>
             </button>
-            <button className={styles.controlPill} type="button">
+            <button
+              className={styles.controlPill}
+              type="button"
+              aria-label={
+                interfaceLanguage === "zh"
+                  ? "目前為繁體中文優先，切換至英文優先"
+                  : "English-first interface active. Switch to Traditional Chinese first."
+              }
+              aria-pressed={interfaceLanguage === "en"}
+              onClick={handleLanguageToggle}
+            >
               <Languages size={20} aria-hidden="true" />
               <span>
-                繁中
-                <small>English</small>
+                {interfaceLanguage === "zh" ? "繁中" : "English"}
+                <small>{interfaceLanguage === "zh" ? "English" : "繁中"}</small>
               </span>
             </button>
           </div>
@@ -562,8 +608,8 @@ export function NavigationWorkspace() {
         <section className={styles.chatCard} aria-label="Question input">
           <div className={styles.inputHeading}>
             <div>
-              <h2>請描述你的症狀或保險問題</h2>
-              <p>Describe your symptom or insurance question</p>
+              <h2>{activeInputHeading.title}</h2>
+              <p>{activeInputHeading.subtitle}</p>
             </div>
           </div>
 
@@ -573,7 +619,7 @@ export function NavigationWorkspace() {
               className={styles.textarea}
               value={input}
               rows={2}
-              placeholder={examples[activeAction]}
+              placeholder={examples[activeAction][interfaceLanguage]}
               onChange={(event) => handleInputChange(event.target.value)}
               onKeyDown={(event) => {
                 if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
@@ -633,8 +679,8 @@ export function NavigationWorkspace() {
                 <span className={styles.actionIcon}>
                   <Icon size={34} aria-hidden="true" />
                 </span>
-                <strong>{card.titleZh}</strong>
-                <small>{card.titleEn}</small>
+                <strong>{interfaceLanguage === "zh" ? card.titleZh : card.titleEn}</strong>
+                <small>{interfaceLanguage === "zh" ? card.titleEn : card.titleZh}</small>
                 <span>{card.bodyZh}</span>
                 <i aria-hidden="true">
                   <ArrowRight size={20} />
