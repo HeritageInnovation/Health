@@ -30,6 +30,43 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates collapse and unresponsive Cantonese wording", () => {
+    const result = analyzeIntake("medical", "佢突然暈倒，冇反應，應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["暈倒", "冇反應", "應該點做"]),
+    );
+  });
+
+  it("escalates English collapse and not responding wording", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "My father collapsed and is not responding. Should I call 999?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["collapsed", "not responding", "call 999"]),
+    );
+  });
+
+  it("does not newly escalate mild dizziness without collapse or another red flag", () => {
+    const result = analyzeIntake("medical", "我今日有少少頭暈，但清醒，應該睇咩醫生？");
+
+    expect(result.urgency.level).not.toBe(1);
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.questions.length).toBeGreaterThan(0);
+    expect(result.matchedSignals).not.toEqual(expect.arrayContaining(["暈倒"]));
+  });
+
   it("escalates accidental ingestion wording without follow-up questions", () => {
     const result = analyzeIntake("medical", "小朋友啱啱誤服清潔劑，應該點做？");
 
