@@ -67,11 +67,27 @@ describe("navigation engine", () => {
     expect(result.disclaimer).toContain("不作診斷");
   });
 
-  it("prioritizes paediatric routing for child symptom prompts", () => {
+  it("routes child fever with rash to same-day paediatric guidance", () => {
     const result = analyzeIntake("medical", "小朋友發燒又出疹兩日，應該睇咩科？");
 
+    expect(result.urgency.level).toBe(2);
+    expect(result.classification).toContain("Same-day care");
+    expect(result.nextAction).toContain("今日內安排醫療評估");
     expect(result.possibleDepartments.join(" ")).toContain("兒科");
     expect(result.careRoute).toContain("小朋友");
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["發燒又出疹", "小朋友"]),
+    );
+  });
+
+  it("routes English child fever with rash wording to same-day care", () => {
+    const result = analyzeIntake("medical", "My child has fever with rash for two days.");
+
+    expect(result.urgency.level).toBe(2);
+    expect(result.possibleDepartments.join(" ")).toContain("Paediatrics");
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["fever with rash", "child"]),
+    );
   });
 
   it("routes stress and panic wording to mental wellness support", () => {
