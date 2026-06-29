@@ -207,6 +207,35 @@ const inputHeadingCopy: Record<InterfaceLanguage, { title: string; subtitle: str
   },
 };
 
+const heroCopy: Record<
+  InterfaceLanguage,
+  {
+    greeting: string;
+    lineOne: string;
+    lineTwo: string;
+    subtitle: string;
+    trust: string;
+    trustSubtitle: string;
+  }
+> = {
+  zh: {
+    greeting: "你好，",
+    lineOne: "我係你的",
+    lineTwo: "AI 醫療顧問",
+    subtitle: "Your AI healthcare guide",
+    trust: "值得信賴・專業・私隱保障",
+    trustSubtitle: "Trusted・Professional・Private",
+  },
+  en: {
+    greeting: "Hello,",
+    lineOne: "I am your",
+    lineTwo: "AI healthcare guide",
+    subtitle: "你的 AI 醫療顧問",
+    trust: "Trusted・Professional・Private",
+    trustSubtitle: "值得信賴・專業・私隱保障",
+  },
+};
+
 function applyCarePreference(result: Recommendation, carePreference: CarePreference): Recommendation {
   if (result.urgency.level === 1) {
     return result;
@@ -249,6 +278,7 @@ export function NavigationWorkspace() {
 
   const activeCard = actionCards.find((card) => card.id === activeAction) ?? actionCards[0];
   const activeInputHeading = inputHeadingCopy[interfaceLanguage];
+  const activeHeroCopy = heroCopy[interfaceLanguage];
   const avatarState = getDoctorAvatarState({
     result,
     isSubmitting,
@@ -589,16 +619,16 @@ export function NavigationWorkspace() {
         <section className={styles.hero} aria-label="Virtual AI doctor">
           <div className={styles.heroCopy}>
             <h1>
-              你好，
-              <span>我係你的</span>
-              <span>AI 醫療顧問</span>
+              {activeHeroCopy.greeting}
+              <span>{activeHeroCopy.lineOne}</span>
+              <span>{activeHeroCopy.lineTwo}</span>
             </h1>
-            <p>Your AI healthcare guide</p>
+            <p>{activeHeroCopy.subtitle}</p>
             <div className={styles.trustBadge}>
               <ShieldCheck size={18} aria-hidden="true" />
               <span>
-                值得信賴・專業・私隱保障
-                <small>Trusted・Professional・Private</small>
+                {activeHeroCopy.trust}
+                <small>{activeHeroCopy.trustSubtitle}</small>
               </span>
             </div>
           </div>
