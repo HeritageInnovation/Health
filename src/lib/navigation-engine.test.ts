@@ -69,7 +69,7 @@ describe("navigation engine", () => {
     expect(result.questions).toHaveLength(0);
     expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
     expect(result.matchedSignals).toEqual(
-      expect.arrayContaining(["throat swelling", "what should i do"]),
+      expect.arrayContaining(["throat is swelling", "what should i do"]),
     );
     expect(result.matchedSignals).not.toContain("allergic reaction");
   });
