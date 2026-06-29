@@ -18,6 +18,57 @@ describe("navigation engine", () => {
     expect(result.possibleDepartments).toContain("急症室 / A&E");
   });
 
+  it("escalates local Hong Kong chest symptom phrasing", () => {
+    const result = analyzeIntake("medical", "我心口痛同胸悶，應該去邊？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["心口痛", "胸悶", "應該去邊"]),
+    );
+  });
+
+  it("prioritizes live Cantonese chest symptoms before coverage guidance", () => {
+    const result = analyzeIntake("insurance", "我而家心口翳，保險包唔包急症？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["而家", "心口翳"]),
+    );
+  });
+
+  it("prioritizes first-person English chest tightness coverage questions", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "I have chest tightness. Will my insurance cover A&E?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["chest tightness", "i have chest tightness"]),
+    );
+  });
+
+  it("keeps generic chest pressure coverage education in insurance mode", () => {
+    const result = analyzeIntake("insurance", "Does insurance cover chest pressure treatment after referral?");
+
+    expect(result.mode).toBe("insurance");
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("保險規劃");
+    expect(result.nextAction).toContain("請先立即求醫");
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toContain("chest pressure");
+  });
+
   it("escalates common Cantonese emergency breathing phrasing", () => {
     const result = analyzeIntake("medical", "我依家呼吸唔到，應該點做？");
 
