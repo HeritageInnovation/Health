@@ -58,6 +58,46 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates live one-sided numbness and slurred speech wording", () => {
+    const result = analyzeIntake("medical", "我突然半邊身麻痺，口齒不清，應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["半邊身麻痺", "口齒不清", "應該點做"]),
+    );
+  });
+
+  it("escalates English one-sided weakness wording", () => {
+    const result = analyzeIntake(
+      "medical",
+      "One side is weak and my speech is slurred right now. Should I go to A&E?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.careRoute).toContain("A&E");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["one side is weak", "right now"]),
+    );
+  });
+
+  it("keeps non-live stroke rehabilitation coverage questions in insurance mode", () => {
+    const result = analyzeIntake("insurance", "中風後半身無力的復康治療，保險通常包唔包？");
+
+    expect(result.mode).toBe("insurance");
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("保險規劃");
+    expect(result.nextAction).toContain("請先立即求醫");
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(expect.arrayContaining(["中風", "半身無力"]));
+  });
+
   it("routes persistent itchy skin to GP and possible dermatology", () => {
     const result = analyzeIntake("medical", "我皮膚痕咗兩個星期，應該睇咩醫生？");
 
