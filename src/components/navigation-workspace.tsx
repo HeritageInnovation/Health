@@ -108,6 +108,13 @@ const examples: Record<ActionId, string> = {
   policy: "例如：想理解住院保單的不保事項、等候期和索償流程...",
 };
 
+const starterPrompts: Record<ActionId, string[]> = {
+  symptom: ["頭痛兩日、有少少發燒，應該點做？", "胃痛同肚瀉一日，需要睇醫生嗎？"],
+  department: ["小朋友發燒出疹兩日，應該睇咩科？", "眼紅又痕，可能要睇邊科？"],
+  insurance: ["自僱、沒有僱主醫療，想了解保障類型。", "想比較住院、門診同危疾保障。"],
+  policy: ["想理解住院保單的不保事項、等候期和索償流程。", "索償需要準備咩文件同收據？"],
+};
+
 const navItems = [
   { label: "首頁", icon: HeartPulse, href: "#home" },
   { label: "對話記錄", icon: MessageSquareText, href: "#memory" },
@@ -300,6 +307,11 @@ export function NavigationWorkspace() {
     setResult(null);
     setSavedSessionId(null);
     setMemoryStatus(null);
+  }
+
+  function handleStarterPromptSelect(prompt: string) {
+    handleInputChange(prompt);
+    window.requestAnimationFrame(() => inputRef.current?.focus());
   }
 
   function handleSubmit() {
@@ -585,6 +597,23 @@ export function NavigationWorkspace() {
             >
               <ArrowRight size={25} aria-hidden="true" />
             </button>
+          </div>
+
+          <div
+            className={styles.memoryActions}
+            style={{ marginTop: 10 }}
+            aria-label="Suggested starter prompts"
+          >
+            {starterPrompts[activeAction].map((prompt) => (
+              <button
+                className={styles.secondaryAction}
+                key={prompt}
+                type="button"
+                onClick={() => handleStarterPromptSelect(prompt)}
+              >
+                {prompt}
+              </button>
+            ))}
           </div>
 
           <div className={styles.featureChips}>
