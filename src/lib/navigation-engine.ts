@@ -71,6 +71,7 @@ const emergencyTerms = [
   "嘴唇腫",
   "面腫",
   "throat swelling",
+  "throat is swelling",
   "throat closing",
   "swollen tongue",
   "swollen lips",
