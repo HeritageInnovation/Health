@@ -58,6 +58,47 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates live Cantonese personal-safety wording without follow-up questions", () => {
+    const result = analyzeIntake("medical", "伴侶威脅我，打我，我而家唔安全，應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["伴侶威脅我", "打我", "唔安全", "而家"]),
+    );
+  });
+
+  it("escalates live English personal-safety wording inside insurance questions", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "My partner hit me and I am not safe at home right now. Will my insurance cover care?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.disclaimer).toBe(MEDICAL_SAFETY_DISCLAIMER);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["my partner hit me", "not safe at home", "right now"]),
+    );
+  });
+
+  it("keeps generic domestic-violence support planning out of emergency routing", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "想了解家庭暴力受害者可用的社區支援和保險安排。",
+    );
+
+    expect(result.mode).toBe("insurance");
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("保險規劃");
+    expect(result.questions.length).toBeGreaterThan(0);
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+  });
+
   it("routes persistent itchy skin to GP and possible dermatology", () => {
     const result = analyzeIntake("medical", "我皮膚痕咗兩個星期，應該睇咩醫生？");
 
