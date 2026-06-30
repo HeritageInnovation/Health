@@ -150,6 +150,36 @@ const coverageRows = [
   "旅遊 / Travel",
 ];
 
+const carePreferenceLabels: Record<
+  CarePreference,
+  Record<InterfaceLanguage, { primary: string; secondary: string; ariaLabel: string }>
+> = {
+  public: {
+    zh: {
+      primary: "公立優先",
+      secondary: "Public first",
+      ariaLabel: "目前為公立優先，切換至私家優先",
+    },
+    en: {
+      primary: "Public first",
+      secondary: "公立優先",
+      ariaLabel: "Public-first care preference active. Switch to private first.",
+    },
+  },
+  private: {
+    zh: {
+      primary: "私家優先",
+      secondary: "Private first",
+      ariaLabel: "目前為私家優先，切換至公立優先",
+    },
+    en: {
+      primary: "Private first",
+      secondary: "私家優先",
+      ariaLabel: "Private-first care preference active. Switch to public first.",
+    },
+  },
+};
+
 const carePreferenceCopy: Record<
   CarePreference,
   Record<IntakeMode, { nextAction: string; checklist: string; audit: string }>
@@ -279,6 +309,7 @@ export function NavigationWorkspace() {
   const activeCard = actionCards.find((card) => card.id === activeAction) ?? actionCards[0];
   const activeInputHeading = inputHeadingCopy[interfaceLanguage];
   const activeHeroCopy = heroCopy[interfaceLanguage];
+  const activeCarePreferenceLabel = carePreferenceLabels[carePreference][interfaceLanguage];
   const avatarState = getDoctorAvatarState({
     result,
     isSubmitting,
@@ -586,14 +617,14 @@ export function NavigationWorkspace() {
             <button
               className={styles.controlPill}
               type="button"
-              aria-label="切換公立或私家醫療偏好"
+              aria-label={activeCarePreferenceLabel.ariaLabel}
               aria-pressed={carePreference === "private"}
               onClick={handleCarePreferenceToggle}
             >
               <Hospital size={20} aria-hidden="true" />
               <span>
-                {carePreference === "public" ? "公立優先" : "私家優先"}
-                <small>{carePreference === "public" ? "Public first" : "Private first"}</small>
+                {activeCarePreferenceLabel.primary}
+                <small>{activeCarePreferenceLabel.secondary}</small>
               </span>
             </button>
             <button
