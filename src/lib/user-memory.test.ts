@@ -324,7 +324,7 @@ function createMemoryPreferenceClient(
   preferenceValue?: boolean | null | Record<string, Json | undefined>,
 ) {
   const calls: Array<{ table: string; payload: Record<string, unknown> }> = [];
-  const preferences =
+  const preferences: Record<string, Json | undefined> =
     typeof preferenceValue === "object" && preferenceValue !== null && !Array.isArray(preferenceValue)
       ? preferenceValue
       : { memory_save_enabled: preferenceValue };
