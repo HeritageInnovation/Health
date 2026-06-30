@@ -58,6 +58,65 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates severe allergic reaction symptoms without follow-up questions", () => {
+    const result = analyzeIntake(
+      "medical",
+      "My throat is swelling after an allergic reaction. What should I do?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["throat is swelling", "what should i do"]),
+    );
+    expect(result.matchedSignals).not.toContain("allergic reaction");
+  });
+
+  it("escalates Traditional Chinese severe allergy swelling wording", () => {
+    const result = analyzeIntake("medical", "我食完藥之後喉嚨腫同嘴唇腫，應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["喉嚨腫", "嘴唇腫", "應該點做"]),
+    );
+  });
+
+  it("does not escalate mild generic allergy rash wording solely from allergic reaction", () => {
+    const result = analyzeIntake(
+      "medical",
+      "I think I had an allergic reaction to a cream and now have an itchy rash.",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(3);
+    expect(result.questions.length).toBeGreaterThan(0);
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.possibleDepartments.join(" ")).toContain("Dermatology");
+    expect(result.matchedSignals).toEqual(expect.arrayContaining(["rash", "itch"]));
+    expect(result.matchedSignals).not.toContain("allergic reaction");
+  });
+
+  it("keeps severe allergy policy wording in policy mode with safety-first wording", () => {
+    const result = analyzeIntake(
+      "policy",
+      "Does my policy cover severe allergic reaction treatment from last year?",
+    );
+
+    expect(result.mode).toBe("policy");
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("policy");
+    expect(result.nextAction).toContain("請先立即求醫");
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["policy", "severe allergic"]),
+    );
+  });
+
   it("routes persistent itchy skin to GP and possible dermatology", () => {
     const result = analyzeIntake("medical", "我皮膚痕咗兩個星期，應該睇咩醫生？");
 
