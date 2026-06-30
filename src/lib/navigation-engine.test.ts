@@ -58,6 +58,40 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates first-person chest pain coverage questions before insurance guidance", () => {
+    const result = analyzeIntake("insurance", "I have chest pain. Will my insurance cover A&E?");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["chest pain", "i have chest pain"]),
+    );
+  });
+
+  it("escalates Cantonese live chest pain coverage questions before insurance guidance", () => {
+    const result = analyzeIntake("insurance", "我胸痛，保險包唔包急症？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(expect.arrayContaining(["胸痛", "我胸痛"]));
+  });
+
+  it("keeps generic stroke treatment coverage questions in insurance mode", () => {
+    const result = analyzeIntake("insurance", "Does my policy cover stroke treatment?");
+
+    expect(result.mode).toBe("policy");
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("索償");
+    expect(result.nextAction).toContain("請先立即求醫");
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+  });
+
   it("routes persistent itchy skin to GP and possible dermatology", () => {
     const result = analyzeIntake("medical", "我皮膚痕咗兩個星期，應該睇咩醫生？");
 

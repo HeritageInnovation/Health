@@ -161,6 +161,34 @@ const activeEmergencyContextTerms = [
   "just happened",
 ];
 
+const liveEmergencyContextTerms = [
+  "i have chest pain",
+  "i'm having chest pain",
+  "im having chest pain",
+  "i am having chest pain",
+  "my chest hurts",
+  "i have shortness of breath",
+  "i'm having shortness of breath",
+  "im having shortness of breath",
+  "i am having shortness of breath",
+  "i have difficulty breathing",
+  "i'm having difficulty breathing",
+  "im having difficulty breathing",
+  "i am having difficulty breathing",
+  "i have trouble breathing",
+  "i'm having trouble breathing",
+  "im having trouble breathing",
+  "i am having trouble breathing",
+  "我胸痛",
+  "我胸口痛",
+  "我氣促",
+  "我呼吸困難",
+  "我呼吸唔到",
+  "我抖唔到氣",
+  "我喘唔到氣",
+  "我透唔到氣",
+];
+
 const sameDayTerms = [
   "高燒",
   "high fever",
@@ -352,12 +380,14 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   const emergencyMatches = matchTerms(text, emergencyTerms);
   const emergencyOverrideMatches = matchTerms(text, emergencyOverrideTerms);
   const activeEmergencyMatches = matchTerms(text, activeEmergencyContextTerms);
+  const liveEmergencyContextMatches = matchTerms(text, liveEmergencyContextTerms);
   const sameDayMatches = matchTerms(text, sameDayTerms);
   const departmentMatch = departmentRules.find((rule) => matchTerms(text, rule.terms).length > 0);
   const insuranceMatches = insuranceSignals.filter((signal) => matchTerms(text, signal.terms).length > 0);
   const hasExplicitInsuranceContext = matchTerms(text, insuranceContextTerms).length > 0;
   const hasExplicitPolicyContext = matchTerms(text, policyContextTerms).length > 0;
   const hasActiveEmergencyContext = activeEmergencyMatches.length > 0;
+  const hasLiveEmergencyContext = liveEmergencyContextMatches.length > 0;
 
   if (
     emergencyMatches.length > 0 &&
@@ -365,6 +395,7 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
       mode === "medical" ||
       !hasExplicitInsuranceContext ||
       hasActiveEmergencyContext ||
+      hasLiveEmergencyContext ||
       emergencyOverrideMatches.length > 0
     )
   ) {
@@ -394,7 +425,7 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
         emergencyOverrideMatches.length > 0
           ? "Detected emergency self-harm, overdose, or accidental ingestion wording."
           : "Detected emergency red-flag wording.",
-        hasActiveEmergencyContext
+        hasActiveEmergencyContext || hasLiveEmergencyContext
           ? "Detected live-symptom wording inside insurance context and prioritized emergency care."
           : "Stopped lengthy intake.",
         "Escalated to emergency care route.",
@@ -403,6 +434,7 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
         ...emergencyMatches,
         ...emergencyOverrideMatches,
         ...activeEmergencyMatches,
+        ...liveEmergencyContextMatches,
       ]),
     };
   }
