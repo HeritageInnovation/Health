@@ -954,7 +954,7 @@ function ResultBlock({
   );
 }
 
-function ResultList({ title, items }: { title: string[] extends never[] ? never : string; items: string[] }) {
+function ResultList({ title, items }: { title: string; items: string[] }) {
   if (items.length === 0) {
     return null;
   }
