@@ -121,12 +121,17 @@ const examples: Record<ActionId, Record<InterfaceLanguage, string>> = {
   },
 };
 
-const navItems = [
-  { label: "首頁", icon: HeartPulse, href: "#home" },
-  { label: "對話記錄", icon: MessageSquareText, href: "#memory" },
-  { label: "健康資訊", icon: Activity, href: "#health-info" },
-  { label: "保險知識", icon: ShieldCheck, href: "#insurance-info" },
-  { label: "我的", icon: UserRoundCheck, href: "#account" },
+const navItems: Array<{
+  labelZh: string;
+  labelEn: string;
+  icon: LucideIcon;
+  href: string;
+}> = [
+  { labelZh: "首頁", labelEn: "Home", icon: HeartPulse, href: "#home" },
+  { labelZh: "對話記錄", labelEn: "History", icon: MessageSquareText, href: "#memory" },
+  { labelZh: "健康資訊", labelEn: "Health Info", icon: Activity, href: "#health-info" },
+  { labelZh: "保險知識", labelEn: "Insurance", icon: ShieldCheck, href: "#insurance-info" },
+  { labelZh: "我的", labelEn: "Account", icon: UserRoundCheck, href: "#account" },
 ];
 
 const featureChips = [
@@ -749,10 +754,21 @@ export function NavigationWorkspace() {
         <nav className={styles.bottomNav} aria-label="Bottom navigation">
           {navItems.map((item, index) => {
             const Icon = item.icon;
+            const itemLabel = interfaceLanguage === "zh" ? item.labelZh : item.labelEn;
+            const itemAriaLabel =
+              interfaceLanguage === "zh"
+                ? `${item.labelZh} / ${item.labelEn}`
+                : `${item.labelEn} / ${item.labelZh}`;
+
             return (
-              <a className={index === 0 ? styles.navActive : ""} href={item.href} key={item.label}>
+              <a
+                className={index === 0 ? styles.navActive : ""}
+                href={item.href}
+                key={item.href}
+                aria-label={itemAriaLabel}
+              >
                 <Icon size={23} aria-hidden="true" />
-                <span>{item.label}</span>
+                <span>{itemLabel}</span>
               </a>
             );
           })}
