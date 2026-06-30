@@ -37,9 +37,14 @@ type Rule = {
 };
 
 const emergencyTerms = [
+  "心口痛",
+  "心口翳",
   "胸口痛",
   "胸痛",
+  "胸悶",
   "chest pain",
+  "chest tightness",
+  "chest pressure",
   "氣促",
   "breathless",
   "shortness of breath",
@@ -152,6 +157,9 @@ const activeEmergencyContextTerms = [
   "應該去邊",
   "去急症",
   "睇急症",
+  "我心口痛",
+  "我心口翳",
+  "我胸悶",
   "call 999",
   "what should i do",
   "should i go",
@@ -159,6 +167,12 @@ const activeEmergencyContextTerms = [
   "currently",
   "at the moment",
   "just happened",
+  "i have chest tightness",
+  "i have chest pressure",
+  "i'm having chest tightness",
+  "i'm having chest pressure",
+  "i am having chest tightness",
+  "i am having chest pressure",
 ];
 
 const sameDayTerms = [
