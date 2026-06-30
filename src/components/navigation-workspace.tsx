@@ -54,6 +54,38 @@ import styles from "./navigation-workspace.module.css";
 type ActionId = "symptom" | "department" | "insurance" | "policy";
 type CarePreference = "public" | "private";
 type InterfaceLanguage = "zh" | "en";
+type SpeechRecognitionAlternativeLike = { transcript: string };
+type SpeechRecognitionResultLike = {
+  isFinal: boolean;
+  0?: SpeechRecognitionAlternativeLike;
+};
+type SpeechRecognitionEventLike = Event & {
+  results: {
+    length: number;
+    [index: number]: SpeechRecognitionResultLike;
+  };
+};
+type SpeechRecognitionErrorEventLike = Event & { error?: string };
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onend: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onstart: (() => void) | null;
+  abort: () => void;
+  start: () => void;
+  stop: () => void;
+};
+type SpeechRecognitionConstructorLike = new () => SpeechRecognitionLike;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructorLike;
+    webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
+  }
+}
 
 const actionCards: Array<{
   id: ActionId;
@@ -260,12 +292,15 @@ function uniqueList<T>(items: T[]) {
 export function NavigationWorkspace() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const speechBaseInputRef = useRef("");
   const [activeAction, setActiveAction] = useState<ActionId>("symptom");
   const [carePreference, setCarePreference] = useState<CarePreference>("public");
   const [interfaceLanguage, setInterfaceLanguage] = useState<InterfaceLanguage>("zh");
   const [input, setInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [speechStatus, setSpeechStatus] = useState<string | null>(null);
   const [result, setResult] = useState<Recommendation | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -343,11 +378,19 @@ export function NavigationWorkspace() {
     };
   }, [supabase]);
 
+  useEffect(() => {
+    return () => {
+      speechRecognitionRef.current?.abort();
+      speechRecognitionRef.current = null;
+    };
+  }, []);
+
   function handleActionSelect(actionId: ActionId) {
     setActiveAction(actionId);
     setResult(null);
     setSavedSessionId(null);
     setMemoryStatus(null);
+    setSpeechStatus(null);
     window.requestAnimationFrame(() => inputRef.current?.focus());
   }
 
@@ -356,6 +399,7 @@ export function NavigationWorkspace() {
     setResult(null);
     setSavedSessionId(null);
     setMemoryStatus(null);
+    setSpeechStatus(null);
   }
 
   function handleCarePreferenceToggle() {
@@ -373,7 +417,98 @@ export function NavigationWorkspace() {
   }
 
   function handleLanguageToggle() {
+    if (isRecording) {
+      speechRecognitionRef.current?.stop();
+    }
+
     setInterfaceLanguage((current) => (current === "zh" ? "en" : "zh"));
+  }
+
+  function handleVoiceInputToggle() {
+    if (isRecording) {
+      speechRecognitionRef.current?.stop();
+      setSpeechStatus("已停止語音輸入 / Voice input stopped.");
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setSpeechStatus("此瀏覽器暫不支援語音輸入 / Voice input is not supported in this browser.");
+      return;
+    }
+
+    speechRecognitionRef.current?.abort();
+
+    const recognition = new SpeechRecognition();
+    speechRecognitionRef.current = recognition;
+    speechBaseInputRef.current = input.trim();
+    recognition.lang = interfaceLanguage === "zh" ? "zh-HK" : "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      setSpeechStatus("正在聆聽... / Listening...");
+    };
+
+    recognition.onresult = (event) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      for (let index = 0; index < event.results.length; index += 1) {
+        const transcript = event.results[index][0]?.transcript.trim();
+
+        if (!transcript) {
+          continue;
+        }
+
+        if (event.results[index].isFinal) {
+          finalTranscript = `${finalTranscript} ${transcript}`.trim();
+        } else {
+          interimTranscript = `${interimTranscript} ${transcript}`.trim();
+        }
+      }
+
+      const spokenText = `${finalTranscript} ${interimTranscript}`.trim();
+      const nextInput = [speechBaseInputRef.current, spokenText].filter(Boolean).join(" ");
+
+      setInput(nextInput);
+      setResult(null);
+      setSavedSessionId(null);
+      setMemoryStatus(null);
+      setSpeechStatus(
+        finalTranscript
+          ? "已加入語音內容，可檢查後提交。Voice text added. Review before submitting."
+          : "正在聆聽... / Listening...",
+      );
+    };
+
+    recognition.onerror = (event) => {
+      const isPermissionIssue = event.error === "not-allowed" || event.error === "service-not-allowed";
+      setIsRecording(false);
+      setSpeechStatus(
+        isPermissionIssue
+          ? "未能使用咪高峰，請檢查瀏覽器權限。Microphone permission is blocked."
+          : "語音輸入暫時未能完成，請再試一次。Voice input could not finish. Please try again.",
+      );
+    };
+
+    recognition.onend = () => {
+      if (speechRecognitionRef.current === recognition) {
+        speechRecognitionRef.current = null;
+      }
+
+      setIsRecording(false);
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      speechRecognitionRef.current = null;
+      setIsRecording(false);
+      setSpeechStatus("語音輸入已經啟動或暫時未能開始。Voice input is already active or could not start.");
+    }
   }
 
   function handleSubmit() {
@@ -389,6 +524,7 @@ export function NavigationWorkspace() {
     setResult(null);
     setSavedSessionId(null);
     setMemoryStatus(null);
+    setSpeechStatus(null);
 
     window.setTimeout(() => {
       const recommendation = analyzeIntake(activeCard.mode, trimmedInput);
@@ -662,7 +798,7 @@ export function NavigationWorkspace() {
               type="button"
               aria-pressed={isRecording}
               aria-label={isRecording ? "停止語音輸入" : "開始語音輸入"}
-              onClick={() => setIsRecording((current) => !current)}
+              onClick={handleVoiceInputToggle}
             >
               <Mic size={22} aria-hidden="true" />
             </button>
@@ -676,6 +812,11 @@ export function NavigationWorkspace() {
               <ArrowRight size={25} aria-hidden="true" />
             </button>
           </div>
+          {speechStatus ? (
+            <p className={styles.memoryStatus} aria-live="polite">
+              {speechStatus}
+            </p>
+          ) : null}
 
           <div className={styles.featureChips}>
             {featureChips.map((chip) => {
