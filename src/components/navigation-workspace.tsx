@@ -39,6 +39,7 @@ import {
   getMemorySavePreference,
   getOrCreateProfile,
   getSafetyLevel,
+  getUserPreference,
   mapRecommendationMode,
   recordConsentEvent,
   saveConversationMessage,
@@ -302,14 +303,31 @@ export function NavigationWorkspace() {
       }
 
       try {
-        const [nextProfile, rememberedSaveHistory] = await Promise.all([
+        const [
+          nextProfile,
+          rememberedSaveHistory,
+          rememberedLanguage,
+          rememberedCarePreference,
+        ] = await Promise.all([
           getOrCreateProfile(nextUser, supabase),
           getMemorySavePreference(nextUser.id, supabase),
+          getUserPreference(nextUser.id, "preferred_language", supabase),
+          getUserPreference(nextUser.id, "care_preference", supabase),
         ]);
 
         if (isMounted) {
           setProfile(nextProfile);
           setSaveHistory(rememberedSaveHistory ?? false);
+
+          if (rememberedLanguage === "en") {
+            setInterfaceLanguage("en");
+          } else if (rememberedLanguage === "zh-Hant") {
+            setInterfaceLanguage("zh");
+          }
+
+          if (rememberedCarePreference === "public" || rememberedCarePreference === "private") {
+            setCarePreference(rememberedCarePreference);
+          }
         }
       } catch (error) {
         if (isMounted) {

@@ -232,22 +232,36 @@ export async function saveUserPreference(
   return data;
 }
 
+export async function getUserPreference(
+  userId: string,
+  key: string,
+  supabase: MemoryClient,
+) {
+  assertUserId(userId);
+
+  if (!canRememberPreferenceKey(key)) {
+    throw new Error("This preference key is not safe for memory lookup.");
+  }
+
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .select("preference_value")
+    .eq("user_id", userId)
+    .eq("preference_key", key)
+    .maybeSingle();
+
+  throwIfSupabaseError(error, "load user preference");
+
+  return (data as { preference_value?: Json } | null)?.preference_value ?? null;
+}
+
 export async function getMemorySavePreference(
   userId: string,
   supabase: MemoryClient,
 ) {
   assertUserId(userId);
 
-  const { data, error } = await supabase
-    .from("user_preferences")
-    .select("preference_value")
-    .eq("user_id", userId)
-    .eq("preference_key", MEMORY_SAVE_PREFERENCE_KEY)
-    .maybeSingle();
-
-  throwIfSupabaseError(error, "load memory save preference");
-
-  const value = (data as { preference_value?: Json } | null)?.preference_value;
+  const value = await getUserPreference(userId, MEMORY_SAVE_PREFERENCE_KEY, supabase);
 
   return typeof value === "boolean" ? value : null;
 }
