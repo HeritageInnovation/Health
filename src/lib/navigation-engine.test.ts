@@ -30,6 +30,49 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates sudden blue lips wording as an emergency", () => {
+    const result = analyzeIntake("medical", "小朋友突然嘴唇發紫，應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["嘴唇發紫", "應該點做"]),
+    );
+  });
+
+  it("escalates English turning-blue wording as an emergency", () => {
+    const result = analyzeIntake(
+      "medical",
+      "My child's lips are turning blue. What should I do?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["turning blue", "what should i do"]),
+    );
+  });
+
+  it("prioritizes live blue-lips emergencies inside insurance questions", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "His lips look blue right now. Will insurance cover A&E?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["lips look blue", "right now"]),
+    );
+  });
+
   it("escalates accidental ingestion wording without follow-up questions", () => {
     const result = analyzeIntake("medical", "小朋友啱啱誤服清潔劑，應該點做？");
 
