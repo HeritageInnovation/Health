@@ -11,6 +11,7 @@ import {
   clearUserMemory,
   getMemorySavePreference,
   getSafeConversationSessionTitle,
+  getUserPreference,
   isSafePreferenceValue,
   sanitizeConversationMessageContent,
   sanitizePreferencesForSummary,
@@ -18,6 +19,7 @@ import {
   saveUserPreference,
   setMemorySavePreference,
   shouldIncludeInMemorySummary,
+  type Json,
   type MemoryClient,
 } from "./user-memory";
 
@@ -88,6 +90,23 @@ describe("auth and memory safety", () => {
     const { client } = createMemoryPreferenceClient();
 
     await expect(getMemorySavePreference("user-1", client)).resolves.toBeNull();
+  });
+
+  it("reads a saved user preference by key", async () => {
+    const { client } = createMemoryPreferenceClient({ preferred_language: "en" });
+
+    await expect(getUserPreference("user-1", "preferred_language", client)).resolves.toBe(
+      "en",
+    );
+    await expect(getUserPreference("user-1", "care_preference", client)).resolves.toBeNull();
+  });
+
+  it("rejects unsafe preference lookup keys", async () => {
+    const { client } = createMemoryPreferenceClient();
+
+    await expect(getUserPreference("user-1", "diagnosis", client)).rejects.toThrow(
+      "preference key is not safe",
+    );
   });
 
   it("persists memory save opt-in with a matching consent event", async () => {
@@ -301,26 +320,38 @@ describe("auth and memory safety", () => {
   });
 });
 
-function createMemoryPreferenceClient(preferenceValue?: boolean | null) {
+function createMemoryPreferenceClient(
+  preferenceValue?: boolean | null | Record<string, Json | undefined>,
+) {
   const calls: Array<{ table: string; payload: Record<string, unknown> }> = [];
+  const preferences =
+    typeof preferenceValue === "object" && preferenceValue !== null && !Array.isArray(preferenceValue)
+      ? preferenceValue
+      : { memory_save_enabled: preferenceValue };
 
   const client = {
     from(table: string) {
       if (table === "user_preferences") {
         return {
+          filters: [] as Array<[string, string]>,
           select() {
             return this;
           },
-          eq() {
+          eq(column: string, value: string) {
+            this.filters.push([column, value]);
             return this;
           },
-          maybeSingle: async () => ({
-            data:
-              preferenceValue === undefined
-                ? null
-                : { preference_value: preferenceValue },
-            error: null,
-          }),
+          maybeSingle: async () => {
+            const preferenceKey = this.filters.find(
+              ([column]) => column === "preference_key",
+            )?.[1];
+            const value = preferenceKey ? preferences[preferenceKey] : undefined;
+
+            return {
+              data: value === undefined ? null : { preference_value: value },
+              error: null,
+            };
+          },
           upsert(payload: Record<string, unknown>) {
             calls.push({ table, payload });
 
