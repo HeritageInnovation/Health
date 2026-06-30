@@ -42,6 +42,50 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates vomiting or coughing blood wording without follow-up questions", () => {
+    const result = analyzeIntake("medical", "我突然吐血同咳血，應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["吐血", "咳血", "突然吐血", "應該點做"]),
+    );
+  });
+
+  it("escalates live vomiting blood wording inside insurance questions", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "I'm vomiting blood. Will my insurance cover A&E?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["vomiting blood", "i'm vomiting blood"]),
+    );
+  });
+
+  it("keeps historical vomiting blood claims wording in policy guidance", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "My policy mentions vomiting blood treatment from last year. How do claims work?",
+    );
+
+    expect(result.mode).toBe("policy");
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("Claims or policy explanation");
+    expect(result.nextAction).toContain("請先立即求醫");
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["policy", "claims", "vomiting blood"]),
+    );
+  });
+
   it("escalates live medication overdose wording inside insurance questions", () => {
     const result = analyzeIntake(
       "insurance",
