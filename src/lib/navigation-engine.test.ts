@@ -90,6 +90,46 @@ describe("navigation engine", () => {
     );
   });
 
+  it("routes Cantonese infant fever wording to same-day paediatric care", () => {
+    const result = analyzeIntake("medical", "我個 BB 發燒，今日應該點安排？");
+
+    expect(result.urgency.level).toBe(2);
+    expect(result.classification).toContain("Same-day care");
+    expect(result.possibleDepartments.join(" ")).toContain("兒科");
+    expect(result.careRoute).toContain("小朋友");
+    expect(result.matchedSignals).toEqual(expect.arrayContaining(["bb 發燒", "bb 發"]));
+  });
+
+  it("escalates English newborn fever wording to emergency care", () => {
+    const result = analyzeIntake("medical", "My newborn has a fever and is not feeding well.");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["newborn has a fever"]),
+    );
+  });
+
+  it("does not treat the English idiom baby fever as infant fever", () => {
+    const result = analyzeIntake("medical", "I have baby fever and want fertility advice.");
+
+    expect(result.urgency.level).not.toBe(2);
+    expect(result.possibleDepartments.join(" ")).toContain("Obstetrics & Gynaecology");
+    expect(result.possibleDepartments.join(" ")).not.toContain("Paediatrics");
+    expect(result.matchedSignals).toEqual(expect.arrayContaining(["fertility"]));
+  });
+
+  it("does not match bb inside unrelated English words", () => {
+    const result = analyzeIntake("medical", "I sprained my ankle during a hobby class.");
+
+    expect(result.urgency.level).toBe(3);
+    expect(result.possibleDepartments.join(" ")).toContain("Orthopaedics");
+    expect(result.possibleDepartments.join(" ")).not.toContain("Paediatrics");
+    expect(result.matchedSignals).toEqual(expect.arrayContaining(["sprain"]));
+  });
+
   it("routes stress and panic wording to mental wellness support", () => {
     const result = analyzeIntake("medical", "最近工作壓力好大，失眠同 panic attack，應該點樣求助？");
 

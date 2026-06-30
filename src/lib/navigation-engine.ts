@@ -107,6 +107,12 @@ const emergencyTerms = [
   "took too many pills",
   "sudden severe headache",
   "突然劇烈頭痛",
+  "初生嬰兒發燒",
+  "初生bb發燒",
+  "初生 bb 發燒",
+  "初生bb有發燒",
+  "newborn fever",
+  "newborn has a fever",
 ];
 
 const emergencyOverrideTerms = [
@@ -164,6 +170,13 @@ const activeEmergencyContextTerms = [
 const sameDayTerms = [
   "高燒",
   "high fever",
+  "嬰兒發燒",
+  "bb發燒",
+  "bb 發燒",
+  "bb有發燒",
+  "infant fever",
+  "infant has a fever",
+  "baby has a fever",
   "dehydration",
   "脫水",
   "persistent vomiting",
@@ -188,7 +201,23 @@ const sameDayTerms = [
 
 const departmentRules: Rule[] = [
   {
-    terms: ["小朋友", "兒童", "child", "kid", "paediatric", "pediatric"],
+    terms: [
+      "小朋友",
+      "兒童",
+      "嬰兒",
+      "初生",
+      "bb發",
+      "bb 發",
+      "bb有",
+      "child",
+      "kid",
+      "newborn",
+      "infant",
+      "my baby",
+      "baby has",
+      "paediatric",
+      "pediatric",
+    ],
     departments: ["兒科 / Paediatrics", "家庭醫學 / Family Medicine"],
     route: "小朋友症狀可先看普通科或兒科；如有危險徵兆，應立即求急症。",
   },
