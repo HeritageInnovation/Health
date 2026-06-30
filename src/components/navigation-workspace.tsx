@@ -739,8 +739,9 @@ export function NavigationWorkspace() {
             {EMERGENCY_ESCALATION_COPY}
             <small>
               For chest pain, severe breathing trouble, stroke signs, unconsciousness,
-              severe bleeding, severe allergic reactions, or other emergencies, call 999
-              or go to A&amp;E.
+              severe bleeding, severe allergic reactions, immediate self-harm risk,
+              overdose, accidental ingestion, or other emergencies, call 999 or go to
+              A&amp;E.
             </small>
           </span>
           <ArrowRight size={21} aria-hidden="true" />
@@ -953,7 +954,7 @@ function ResultBlock({
   );
 }
 
-function ResultList({ title, items }: { title: string; items: string[] }) {
+function ResultList({ title, items }: { title: string[] extends never[] ? never : string; items: string[] }) {
   if (items.length === 0) {
     return null;
   }
