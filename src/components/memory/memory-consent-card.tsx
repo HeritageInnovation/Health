@@ -84,7 +84,11 @@ export function MemoryConsentCard({
         </div>
       ) : null}
 
-      {status ? <p className={styles.memoryStatus}>{status}</p> : null}
+      {status ? (
+        <p className={styles.memoryStatus} role="status" aria-live="polite" aria-atomic="true">
+          {status}
+        </p>
+      ) : null}
     </section>
   );
 }
