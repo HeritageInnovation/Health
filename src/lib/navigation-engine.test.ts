@@ -58,6 +58,42 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates fever with stiff neck wording without follow-up questions", () => {
+    const result = analyzeIntake("medical", "我發燒同頸硬，應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["發燒", "頸硬", "應該點做"]),
+    );
+  });
+
+  it("escalates live fever with neck stiffness inside insurance questions", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "I have fever and neck stiffness right now. Will insurance cover A&E?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["fever", "neck stiffness", "right now"]),
+    );
+  });
+
+  it("does not escalate neck stiffness alone without fever wording", () => {
+    const result = analyzeIntake("medical", "I slept badly and my neck is stiff after exercise.");
+
+    expect(result.urgency.level).not.toBe(1);
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).not.toContain("neck is stiff");
+  });
+
   it("routes persistent itchy skin to GP and possible dermatology", () => {
     const result = analyzeIntake("medical", "我皮膚痕咗兩個星期，應該睇咩醫生？");
 
