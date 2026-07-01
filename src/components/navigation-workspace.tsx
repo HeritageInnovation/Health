@@ -310,6 +310,8 @@ export function NavigationWorkspace() {
   }
 
   function handleStarterPromptSelect(prompt: string) {
+    if (isSubmitting) return;
+
     handleInputChange(prompt);
     window.requestAnimationFrame(() => inputRef.current?.focus());
   }
@@ -602,6 +604,7 @@ export function NavigationWorkspace() {
           <div
             className={styles.memoryActions}
             style={{ marginTop: 10 }}
+            role="group"
             aria-label="Suggested starter prompts"
           >
             {starterPrompts[activeAction].map((prompt) => (
@@ -609,6 +612,7 @@ export function NavigationWorkspace() {
                 className={styles.secondaryAction}
                 key={prompt}
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => handleStarterPromptSelect(prompt)}
               >
                 {prompt}
