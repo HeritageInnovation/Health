@@ -270,8 +270,16 @@ export function AuthPanel({
         {!GOOGLE_OAUTH_ENABLED ? "（待 Supabase provider 啟用 / disabled）" : ""}
       </button>
 
-      {status ? <p className={styles.successText}>{status}</p> : null}
-      {error ? <p className={styles.errorText}>{error}</p> : null}
+      {status ? (
+        <p className={styles.successText} role="status">
+          {status}
+        </p>
+      ) : null}
+      {error ? (
+        <p className={styles.errorText} role="alert">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }
