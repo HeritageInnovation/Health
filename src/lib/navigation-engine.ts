@@ -139,6 +139,50 @@ const emergencyOverrideTerms = [
   "took too many pills",
 ];
 
+const personalSafetyTerms = [
+  "家暴",
+  "家庭暴力",
+  "被打",
+  "畀人打",
+  "被家人打",
+  "伴侶威脅我",
+  "威脅我",
+  "打我",
+  "唔安全",
+  "不安全",
+  "唔敢返屋企",
+  "不敢回家",
+  "domestic violence",
+  "partner hit me",
+  "my partner hit me",
+  "not safe at home",
+  "unsafe at home",
+  "being abused",
+  "i am being abused",
+  "i'm being abused",
+];
+
+const activePersonalSafetyContextTerms = [
+  "被打",
+  "畀人打",
+  "被家人打",
+  "伴侶威脅我",
+  "威脅我",
+  "打我",
+  "唔安全",
+  "不安全",
+  "唔敢返屋企",
+  "不敢回家",
+  "partner hit me",
+  "my partner hit me",
+  "not safe at home",
+  "unsafe at home",
+  "i am being abused",
+  "i'm being abused",
+  "need help now",
+  "help now",
+];
+
 const activeEmergencyContextTerms = [
   "而家",
   "依家",
@@ -351,6 +395,8 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   const text = normalize(input);
   const emergencyMatches = matchTerms(text, emergencyTerms);
   const emergencyOverrideMatches = matchTerms(text, emergencyOverrideTerms);
+  const personalSafetyMatches = matchTerms(text, personalSafetyTerms);
+  const activePersonalSafetyMatches = matchTerms(text, activePersonalSafetyContextTerms);
   const activeEmergencyMatches = matchTerms(text, activeEmergencyContextTerms);
   const sameDayMatches = matchTerms(text, sameDayTerms);
   const departmentMatch = departmentRules.find((rule) => matchTerms(text, rule.terms).length > 0);
@@ -358,15 +404,17 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   const hasExplicitInsuranceContext = matchTerms(text, insuranceContextTerms).length > 0;
   const hasExplicitPolicyContext = matchTerms(text, policyContextTerms).length > 0;
   const hasActiveEmergencyContext = activeEmergencyMatches.length > 0;
+  const hasActivePersonalSafetyContext =
+    personalSafetyMatches.length > 0 &&
+    (activePersonalSafetyMatches.length > 0 || hasActiveEmergencyContext);
 
   if (
-    emergencyMatches.length > 0 &&
-    (
-      mode === "medical" ||
-      !hasExplicitInsuranceContext ||
-      hasActiveEmergencyContext ||
-      emergencyOverrideMatches.length > 0
-    )
+    hasActivePersonalSafetyContext ||
+    (emergencyMatches.length > 0 &&
+      (mode === "medical" ||
+        !hasExplicitInsuranceContext ||
+        hasActiveEmergencyContext ||
+        emergencyOverrideMatches.length > 0))
   ) {
     return {
       mode: "medical",
@@ -391,17 +439,23 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
       escalation: EMERGENCY_ESCALATION_COPY,
       disclaimer: medicalDisclaimer(),
       audit: [
-        emergencyOverrideMatches.length > 0
-          ? "Detected emergency self-harm, overdose, or accidental ingestion wording."
-          : "Detected emergency red-flag wording.",
-        hasActiveEmergencyContext
-          ? "Detected live-symptom wording inside insurance context and prioritized emergency care."
-          : "Stopped lengthy intake.",
+        hasActivePersonalSafetyContext
+          ? "Detected immediate personal-safety wording."
+          : emergencyOverrideMatches.length > 0
+            ? "Detected emergency self-harm, overdose, or accidental ingestion wording."
+            : "Detected emergency red-flag wording.",
+        hasActivePersonalSafetyContext
+          ? "Detected live personal-safety context and prioritized emergency help."
+          : hasActiveEmergencyContext
+            ? "Detected live-symptom wording inside insurance context and prioritized emergency care."
+            : "Stopped lengthy intake.",
         "Escalated to emergency care route.",
       ],
       matchedSignals: unique([
         ...emergencyMatches,
         ...emergencyOverrideMatches,
+        ...(hasActivePersonalSafetyContext ? personalSafetyMatches : []),
+        ...activePersonalSafetyMatches,
         ...activeEmergencyMatches,
       ]),
     };
