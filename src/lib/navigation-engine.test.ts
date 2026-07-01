@@ -76,7 +76,9 @@ describe("navigation engine", () => {
     expect(result.urgency.level).toBe(1);
     expect(result.questions).toHaveLength(0);
     expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
-    expect(result.matchedSignals).toEqual(expect.arrayContaining(["灼傷", "去急症"]));
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["清潔劑濺到眼", "去急症"]),
+    );
   });
 
   it("escalates live electric shock wording inside insurance questions", () => {
