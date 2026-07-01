@@ -277,6 +277,11 @@ const resultCardCopy: Record<
   },
 };
 
+const emergencyCallLabels: Record<InterfaceLanguage, string> = {
+  zh: "緊急情況請致電 999 或前往急症室",
+  en: "Call 999 or go to A&E for an emergency",
+};
+
 function applyCarePreference(result: Recommendation, carePreference: CarePreference): Recommendation {
   if (result.urgency.level === 1) {
     return result;
@@ -320,6 +325,7 @@ export function NavigationWorkspace() {
   const activeCard = actionCards.find((card) => card.id === activeAction) ?? actionCards[0];
   const activeInputHeading = inputHeadingCopy[interfaceLanguage];
   const activeHeroCopy = heroCopy[interfaceLanguage];
+  const emergencyCallLabel = emergencyCallLabels[interfaceLanguage];
   const avatarState = getDoctorAvatarState({
     result,
     isSubmitting,
@@ -775,7 +781,7 @@ export function NavigationWorkspace() {
           />
         )}
 
-        <a className={styles.emergencyBar} href="tel:999" aria-label="Call 999 for emergency">
+        <a className={styles.emergencyBar} href="tel:999" aria-label={emergencyCallLabel}>
           <AlertTriangle size={26} aria-hidden="true" />
           <span>
             {EMERGENCY_ESCALATION_COPY}
