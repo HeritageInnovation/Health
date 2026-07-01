@@ -680,11 +680,14 @@ export function NavigationWorkspace() {
           <div className={styles.featureChips}>
             {featureChips.map((chip) => {
               const Icon = chip.icon;
+              const primaryLabel = interfaceLanguage === "zh" ? chip.zh : chip.en;
+              const secondaryLabel = interfaceLanguage === "zh" ? chip.en : chip.zh;
+
               return (
                 <span key={chip.zh}>
                   <Icon size={18} aria-hidden="true" />
-                  <strong>{chip.zh}</strong>
-                  <small>{chip.en}</small>
+                  <strong>{primaryLabel}</strong>
+                  <small>{secondaryLabel}</small>
                 </span>
               );
             })}
