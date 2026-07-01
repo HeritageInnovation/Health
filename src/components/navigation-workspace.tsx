@@ -121,6 +121,44 @@ const examples: Record<ActionId, Record<InterfaceLanguage, string>> = {
   },
 };
 
+const intakeInputLabels: Record<ActionId, Record<InterfaceLanguage, string>> = {
+  symptom: {
+    zh: "描述症狀以取得初步評估",
+    en: "Describe symptoms for an initial check",
+  },
+  department: {
+    zh: "描述情況以尋找合適科別",
+    en: "Describe your situation to find a suitable department",
+  },
+  insurance: {
+    zh: "描述保障需要以取得保險建議",
+    en: "Describe coverage needs for insurance guidance",
+  },
+  policy: {
+    zh: "描述保單或索償問題以取得解讀",
+    en: "Describe policy or claims questions for explanation",
+  },
+};
+
+const actionCardLabels: Record<ActionId, Record<InterfaceLanguage, string>> = {
+  symptom: {
+    zh: "選擇症狀評估",
+    en: "Select Symptom Check",
+  },
+  department: {
+    zh: "選擇搵科別",
+    en: "Select Find Department",
+  },
+  insurance: {
+    zh: "選擇保險建議",
+    en: "Select Insurance Guidance",
+  },
+  policy: {
+    zh: "選擇保單解讀",
+    en: "Select Policy and Claims",
+  },
+};
+
 const navItems = [
   { label: "首頁", icon: HeartPulse, href: "#home" },
   { label: "對話記錄", icon: MessageSquareText, href: "#memory" },
@@ -324,6 +362,7 @@ export function NavigationWorkspace() {
 
   const activeCard = actionCards.find((card) => card.id === activeAction) ?? actionCards[0];
   const activeInputHeading = inputHeadingCopy[interfaceLanguage];
+  const activeInputLabel = intakeInputLabels[activeAction][interfaceLanguage];
   const activeHeroCopy = heroCopy[interfaceLanguage];
   const emergencyCallLabel = emergencyCallLabels[interfaceLanguage];
   const avatarState = getDoctorAvatarState({
@@ -696,6 +735,7 @@ export function NavigationWorkspace() {
               className={styles.textarea}
               value={input}
               rows={2}
+              aria-label={activeInputLabel}
               placeholder={examples[activeAction][interfaceLanguage]}
               onChange={(event) => handleInputChange(event.target.value)}
               onKeyDown={(event) => {
@@ -751,6 +791,7 @@ export function NavigationWorkspace() {
                 key={card.id}
                 type="button"
                 aria-pressed={isActive}
+                aria-label={actionCardLabels[card.id][interfaceLanguage]}
                 onClick={() => handleActionSelect(card.id)}
               >
                 <span className={styles.actionIcon}>
