@@ -99,6 +99,43 @@ describe("navigation engine", () => {
     expect(result.matchedSignals).toEqual(expect.arrayContaining(["失眠", "壓力", "panic"]));
   });
 
+  it("routes Traditional Chinese exercise and nutrition planning to wellness guidance", () => {
+    const result = analyzeIntake("medical", "想建立每週運動習慣和飲食計劃，應該點開始？");
+
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("預防及健康規劃");
+    expect(result.nextAction).toContain("近期健康目標");
+    expect(result.careRoute).toContain("預防及健康生活規劃");
+    expect(result.possibleDepartments).toContain("健康習慣規劃 / Healthy habit planning");
+    expect(result.possibleDepartments.join(" ")).not.toContain("Orthopaedics");
+    expect(result.questions.join(" ")).toContain("睡眠、飲食、運動、壓力");
+    expect(result.escalation).toContain("長期病");
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["建立", "每週運動", "運動習慣", "飲食計劃"]),
+    );
+  });
+
+  it("routes English sleep, exercise, and nutrition planning to wellness guidance", () => {
+    const result = analyzeIntake(
+      "medical",
+      "I want to improve my sleep, exercise, and nutrition habits. Where should I start?",
+    );
+
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("Prevention and wellness planning");
+    expect(result.nextAction).toContain("健康目標");
+    expect(result.careRoute).toContain("營養");
+    expect(result.possibleDepartments).toContain(
+      "營養及運動目標 / Nutrition and activity goals",
+    );
+    expect(result.possibleDepartments.join(" ")).not.toContain("Family Medicine");
+    expect(result.questions.join(" ")).toContain("保守、適中");
+    expect(result.escalation).toContain("藥物問題");
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["improve my sleep", "where should i start", "nutrition", "habits"]),
+    );
+  });
+
   it("does not treat generic infant insurance planning as an emergency", () => {
     const result = analyzeIntake("insurance", "想幫嬰兒比較住院醫療同門診保障。");
 
