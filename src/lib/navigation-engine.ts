@@ -342,10 +342,57 @@ const policyContextTerms = [
   "醫療收據",
 ];
 
+const wellnessPlanningTerms = [
+  "健康習慣",
+  "健康生活",
+  "生活計劃",
+  "飲食計劃",
+  "運動習慣",
+  "改善睡眠",
+  "睡眠習慣",
+  "每週運動",
+  "營養",
+  "飲食",
+  "健身",
+  "建立",
+  "開始",
+  "習慣",
+  "計劃",
+  "規劃",
+  "目標",
+  "healthy habit",
+  "healthy habits",
+  "healthy lifestyle",
+  "lifestyle plan",
+  "nutrition",
+  "exercise habit",
+  "exercise habits",
+  "fitness goal",
+  "fitness goals",
+  "sleep habits",
+  "improve my sleep",
+  "improve sleep",
+  "where should i start",
+  "start",
+  "routine",
+  "habit",
+  "habits",
+  "plan",
+  "planning",
+  "goal",
+  "goals",
+];
+
 const insuranceSafetyNudge =
   "如果你同時正出現胸痛、嚴重呼吸困難、中風徵象、昏迷、嚴重出血、嚴重過敏反應或其他危急情況，請先立即求醫，再處理保障或索償問題。";
 
 const defaultMedicalDepartments = ["家庭醫學 / Family Medicine", "普通科醫生 / GP"];
+
+const wellnessPlanningDepartments = [
+  "健康習慣規劃 / Healthy habit planning",
+  "營養及運動目標 / Nutrition and activity goals",
+  "普通科醫生 / GP if symptoms or medical conditions are involved",
+];
 
 export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   const text = normalize(input);
@@ -354,6 +401,7 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   const activeEmergencyMatches = matchTerms(text, activeEmergencyContextTerms);
   const sameDayMatches = matchTerms(text, sameDayTerms);
   const departmentMatch = departmentRules.find((rule) => matchTerms(text, rule.terms).length > 0);
+  const wellnessPlanningMatches = matchTerms(text, wellnessPlanningTerms);
   const insuranceMatches = insuranceSignals.filter((signal) => matchTerms(text, signal.terms).length > 0);
   const hasExplicitInsuranceContext = matchTerms(text, insuranceContextTerms).length > 0;
   const hasExplicitPolicyContext = matchTerms(text, policyContextTerms).length > 0;
@@ -419,6 +467,9 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
     return buildPolicyRecommendation(text, emergencyMatches);
   }
 
+  const usesWellnessPlanningRoute =
+    sameDayMatches.length === 0 && (wellnessPlanningMatches.length > 0 || !departmentMatch);
+  const effectiveDepartmentMatch = usesWellnessPlanningRoute ? undefined : departmentMatch;
   const urgency =
     sameDayMatches.length > 0
       ? {
@@ -428,12 +479,12 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
           summary: "建議即日求醫，視乎嚴重程度可選普通科、私家診所或合適公營醫療服務。",
         }
       : {
-          level: departmentMatch ? (3 as const) : (4 as const),
-          label: departmentMatch ? "Level 3 非緊急醫生諮詢" : "Level 4 預防及規劃",
-          tone: departmentMatch ? ("steady" as const) : ("planning" as const),
-          summary: departmentMatch
+          level: effectiveDepartmentMatch ? (3 as const) : (4 as const),
+          label: effectiveDepartmentMatch ? "Level 3 非緊急醫生諮詢" : "Level 4 預防及規劃",
+          tone: effectiveDepartmentMatch ? ("steady" as const) : ("planning" as const),
+          summary: effectiveDepartmentMatch
             ? "暫未見明顯緊急危險徵兆，可先安排普通科或家庭醫生評估。"
-            : "這較像計劃性查詢。可以整理資料，再安排非緊急諮詢或專業意見。",
+            : "這較像預防或健康生活規劃查詢。可以先整理目標、現時習慣和限制，再決定下一步。",
         };
 
   return {
@@ -441,48 +492,79 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
     classification:
       sameDayMatches.length > 0
         ? "非緊急但需即日處理 / Same-day care"
-        : "非緊急症狀導航 / Non-urgent symptom navigation",
+        : usesWellnessPlanningRoute
+          ? "預防及健康規劃 / Prevention and wellness planning"
+          : "非緊急症狀導航 / Non-urgent symptom navigation",
     urgency,
     nextAction:
       sameDayMatches.length > 0
         ? "今日內安排醫療評估；如果症狀加重或出現胸痛、氣促、昏迷、中風徵兆等，立即改為急症處理。"
-        : "先預約普通科或家庭醫生；如已有指定專科或長期病紀錄，可帶同相關資料求診。",
-    careRoute:
-      departmentMatch?.route ?? "可先由普通科或家庭醫生評估，再按需要轉介合適專科。",
-    possibleDepartments: departmentMatch?.departments ?? defaultMedicalDepartments,
-    insuranceCategories: inferInsuranceForCareRoute(departmentMatch),
-    questions: [
-      "年齡範圍是甚麼？",
-      "症狀持續了多久，是否突然惡化？",
-      "有沒有發燒、呼吸困難、劇痛、失去知覺或其他危險徵兆？",
-      "你偏好公營、私營，還是先按可及性決定？",
-    ],
-    decisionChecklist: [
-      "記錄症狀開始時間、變化和嚴重程度。",
-      "列出已服用藥物、過敏史和既有病歷。",
-      "帶同過往檢查報告、相片或體溫紀錄。",
-      "如果出現新的危險徵兆，立即改為急症處理。",
-    ],
-    memoryCandidates: [
-      "語言偏好：繁體中文 / English",
-      "公營、私營或混合醫療偏好",
-      "常用地區：港島、九龍或新界",
-    ],
-    escalation:
-      "如出現危險徵兆、症狀快速惡化、嬰幼兒嚴重異常或精神健康危機，請立即求急症服務。",
+        : usesWellnessPlanningRoute
+          ? "先定義一個近期健康目標、現時作息和主要限制，再選一個最想先改善的習慣開始。"
+          : "先預約普通科或家庭醫生；如已有指定專科或長期病紀錄，可帶同相關資料求診。",
+    careRoute: usesWellnessPlanningRoute
+      ? "這屬於預防及健康生活規劃，可先由可持續習慣、營養、活動量和睡眠節奏入手；如有症狀、長期病、受傷、懷孕、藥物問題或快速惡化，應諮詢醫生。"
+      : effectiveDepartmentMatch?.route ?? "可先由普通科或家庭醫生評估，再按需要轉介合適專科。",
+    possibleDepartments: usesWellnessPlanningRoute
+      ? wellnessPlanningDepartments
+      : effectiveDepartmentMatch?.departments ?? defaultMedicalDepartments,
+    insuranceCategories: inferInsuranceForCareRoute(effectiveDepartmentMatch),
+    questions: usesWellnessPlanningRoute
+      ? [
+          "你最想先改善哪一個目標：睡眠、飲食、運動、壓力，還是整體習慣？",
+          "你現在一週的作息、活動量和飲食大概是怎樣？",
+          "時間、預算、體能、照顧責任或工作壓力上有甚麼限制？",
+          "你想用保守、適中，還是較積極的節奏開始？",
+        ]
+      : [
+          "年齡範圍是甚麼？",
+          "症狀持續了多久，是否突然惡化？",
+          "有沒有發燒、呼吸困難、劇痛、失去知覺或其他危險徵兆？",
+          "你偏好公營、私營，還是先按可及性決定？",
+        ],
+    decisionChecklist: usesWellnessPlanningRoute
+      ? [
+          "選一個 1 至 2 週內可完成的小目標。",
+          "記錄目前基準，例如睡眠時間、每週活動日數、飲食模式或壓力來源。",
+          "列出最容易卡住的限制，先調整環境或時間安排。",
+          "如出現症狀、受傷、慢性病變化、懷孕或藥物疑問，先諮詢醫療專業人士。",
+        ]
+      : [
+          "記錄症狀開始時間、變化和嚴重程度。",
+          "列出已服用藥物、過敏史和既有病歷。",
+          "帶同過往檢查報告、相片或體溫紀錄。",
+          "如果出現新的危險徵兆，立即改為急症處理。",
+        ],
+    memoryCandidates: usesWellnessPlanningRoute
+      ? [
+          "近期健康目標和想先改善的習慣",
+          "可行的運動、飲食、睡眠或壓力管理節奏",
+          "語言偏好：繁體中文 / English",
+        ]
+      : [
+          "語言偏好：繁體中文 / English",
+          "公營、私營或混合醫療偏好",
+          "常用地區：港島、九龍或新界",
+        ],
+    escalation: usesWellnessPlanningRoute
+      ? "如有症狀、長期病、受傷、懷孕、藥物問題、精神健康危機或情況快速惡化，請先諮詢醫生或立即求急症服務。"
+      : "如出現危險徵兆、症狀快速惡化、嬰幼兒嚴重異常或精神健康危機，請立即求急症服務。",
     disclaimer: medicalDisclaimer(),
     audit: [
       sameDayMatches.length > 0
         ? "Detected same-day care signal."
         : "No emergency red flag detected from the provided text.",
-      departmentMatch
-        ? `Mapped to ${departmentMatch.departments[0]}.`
-        : "Defaulted to GP/family doctor first route.",
+      usesWellnessPlanningRoute
+        ? wellnessPlanningMatches.length > 0
+          ? "Detected wellness planning intent and used prevention/planning route."
+          : "No department match; used prevention/planning route."
+        : `Mapped to ${effectiveDepartmentMatch?.departments[0]}.`,
       "Applied safe wording: possible department, not diagnosis.",
     ],
     matchedSignals: [
       ...sameDayMatches,
-      ...(departmentMatch ? matchTerms(text, departmentMatch.terms) : []),
+      ...wellnessPlanningMatches,
+      ...(effectiveDepartmentMatch ? matchTerms(text, effectiveDepartmentMatch.terms) : []),
     ],
   };
 }
