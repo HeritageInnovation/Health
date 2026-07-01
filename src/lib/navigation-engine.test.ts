@@ -42,6 +42,73 @@ describe("navigation engine", () => {
     );
   });
 
+  it("escalates severe burn wording without follow-up questions", () => {
+    const result = analyzeIntake("medical", "小朋友俾滾水嚴重燙傷，應該點做？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["嚴重燙傷", "應該點做"]),
+    );
+  });
+
+  it("escalates English severe burn wording", () => {
+    const result = analyzeIntake(
+      "medical",
+      "My child has a severe burn from boiling water. What should I do?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["severe burn", "what should i do"]),
+    );
+  });
+
+  it("escalates chemical burn wording", () => {
+    const result = analyzeIntake("medical", "清潔劑濺到眼同皮膚灼傷，要唔要去急症？");
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["清潔劑濺到眼", "去急症"]),
+    );
+  });
+
+  it("escalates live electric shock wording inside insurance questions", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "I had an electric shock and feel confused. Will insurance cover A&E?",
+    );
+
+    expect(result.mode).toBe("medical");
+    expect(result.urgency.level).toBe(1);
+    expect(result.questions).toHaveLength(0);
+    expect(result.nextAction).toContain("立即求急症服務");
+    expect(result.escalation).toBe(EMERGENCY_ESCALATION_COPY);
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["electric shock", "feel confused"]),
+    );
+  });
+
+  it("keeps old burn scar coverage wording in insurance planning", () => {
+    const result = analyzeIntake(
+      "insurance",
+      "Does my policy cover treatment for old burn scars?",
+    );
+
+    expect(result.mode).toBe("insurance");
+    expect(result.urgency.level).toBe(4);
+    expect(result.classification).toContain("Insurance planning");
+    expect(result.escalation).not.toBe(EMERGENCY_ESCALATION_COPY);
+  });
+
   it("escalates live medication overdose wording inside insurance questions", () => {
     const result = analyzeIntake(
       "insurance",
