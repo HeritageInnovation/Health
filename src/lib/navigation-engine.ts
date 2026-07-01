@@ -70,7 +70,7 @@ const emergencyTerms = [
   "嚴重燙傷",
   "化學燒傷",
   "化學灼傷",
-  "灼傷",
+  "清潔劑濺到眼",
   "觸電",
   "電擊",
   "電親",
@@ -179,7 +179,6 @@ const activeEmergencyContextTerms = [
   "just happened",
   "feel confused",
   "feeling confused",
-  "confused",
 ];
 
 const sameDayTerms = [
