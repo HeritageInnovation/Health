@@ -90,6 +90,29 @@ describe("navigation engine", () => {
     );
   });
 
+  it("routes Cantonese infant fever and low responsiveness wording to same-day paediatric guidance", () => {
+    const result = analyzeIntake("medical", "BB 發燒同好冇精神，應該點做？");
+
+    expect(result.urgency.level).toBe(2);
+    expect(result.classification).toContain("Same-day care");
+    expect(result.nextAction).toContain("今日內安排醫療評估");
+    expect(result.possibleDepartments.join(" ")).toContain("兒科");
+    expect(result.careRoute).toContain("小朋友");
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["bb", "發燒", "好冇精神"]),
+    );
+  });
+
+  it("routes English infant fever and lethargy wording to same-day care", () => {
+    const result = analyzeIntake("medical", "My infant has a fever and is lethargic.");
+
+    expect(result.urgency.level).toBe(2);
+    expect(result.possibleDepartments.join(" ")).toContain("Paediatrics");
+    expect(result.matchedSignals).toEqual(
+      expect.arrayContaining(["infant", "fever", "lethargic"]),
+    );
+  });
+
   it("routes stress and panic wording to mental wellness support", () => {
     const result = analyzeIntake("medical", "最近工作壓力好大，失眠同 panic attack，應該點樣求助？");
 
