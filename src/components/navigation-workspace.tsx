@@ -286,6 +286,10 @@ export function NavigationWorkspace() {
   });
 
   useEffect(() => {
+    document.documentElement.lang = interfaceLanguage === "zh" ? "zh-Hant-HK" : "en-HK";
+  }, [interfaceLanguage]);
+
+  useEffect(() => {
     if (!supabase) {
       return;
     }
