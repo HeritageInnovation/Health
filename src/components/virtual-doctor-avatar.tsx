@@ -58,6 +58,7 @@ export function DoctorAvatar({
   showSafetyLabel?: boolean;
 }) {
   const stateCopy = getStateCopy(state);
+  const avatarLabel = `Virtual AI healthcare guide status: ${stateCopy.en} / ${stateCopy.zh}`;
 
   return (
     <div
@@ -65,7 +66,7 @@ export function DoctorAvatar({
         className ?? ""
       }`}
       data-avatar-state={state}
-      aria-label={`Virtual AI doctor avatar: ${state}`}
+      aria-label={avatarLabel}
     >
       <div className={styles.avatarGlow} aria-hidden="true" />
       <Image
