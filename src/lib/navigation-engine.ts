@@ -109,6 +109,17 @@ const emergencyTerms = [
   "突然劇烈頭痛",
 ];
 
+const feverMeningitisTerms = ["發燒", "高燒", "fever", "high fever"];
+
+const neckStiffnessEmergencyTerms = [
+  "頸硬",
+  "頸好硬",
+  "脖子硬",
+  "neck stiffness",
+  "stiff neck",
+  "neck is stiff",
+];
+
 const emergencyOverrideTerms = [
   "自殺",
   "自殘",
@@ -349,7 +360,10 @@ const defaultMedicalDepartments = ["家庭醫學 / Family Medicine", "普通科�
 
 export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   const text = normalize(input);
-  const emergencyMatches = matchTerms(text, emergencyTerms);
+  const emergencyMatches = unique([
+    ...matchTerms(text, emergencyTerms),
+    ...matchFeverNeckEmergencyTerms(text),
+  ]);
   const emergencyOverrideMatches = matchTerms(text, emergencyOverrideTerms);
   const activeEmergencyMatches = matchTerms(text, activeEmergencyContextTerms);
   const sameDayMatches = matchTerms(text, sameDayTerms);
@@ -674,6 +688,15 @@ function matchTerms(text: string, terms: string[]) {
   }
 
   return unique(terms.filter((term) => text.includes(term.toLowerCase())));
+}
+
+function matchFeverNeckEmergencyTerms(text: string) {
+  const feverMatches = matchTerms(text, feverMeningitisTerms);
+  const neckMatches = matchTerms(text, neckStiffnessEmergencyTerms);
+
+  return feverMatches.length > 0 && neckMatches.length > 0
+    ? unique([...feverMatches, ...neckMatches])
+    : [];
 }
 
 function unique<T>(items: T[]) {
