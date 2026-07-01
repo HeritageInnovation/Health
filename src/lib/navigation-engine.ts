@@ -186,9 +186,32 @@ const sameDayTerms = [
   "severe pain",
 ];
 
+const pediatricTerms = [
+  "小朋友",
+  "兒童",
+  "嬰兒",
+  "bb",
+  "child",
+  "kid",
+  "baby",
+  "infant",
+  "paediatric",
+  "pediatric",
+];
+
+const pediatricSameDaySymptomTerms = [
+  "發燒",
+  "好冇精神",
+  "冇精神",
+  "反應差",
+  "fever",
+  "lethargic",
+  "poor feeding",
+];
+
 const departmentRules: Rule[] = [
   {
-    terms: ["小朋友", "兒童", "child", "kid", "paediatric", "pediatric"],
+    terms: pediatricTerms,
     departments: ["兒科 / Paediatrics", "家庭醫學 / Family Medicine"],
     route: "小朋友症狀可先看普通科或兒科；如有危險徵兆，應立即求急症。",
   },
@@ -352,7 +375,10 @@ export function analyzeIntake(mode: IntakeMode, input: string): Recommendation {
   const emergencyMatches = matchTerms(text, emergencyTerms);
   const emergencyOverrideMatches = matchTerms(text, emergencyOverrideTerms);
   const activeEmergencyMatches = matchTerms(text, activeEmergencyContextTerms);
-  const sameDayMatches = matchTerms(text, sameDayTerms);
+  const sameDayMatches = unique([
+    ...matchTerms(text, sameDayTerms),
+    ...matchPediatricSameDaySignals(text),
+  ]);
   const departmentMatch = departmentRules.find((rule) => matchTerms(text, rule.terms).length > 0);
   const insuranceMatches = insuranceSignals.filter((signal) => matchTerms(text, signal.terms).length > 0);
   const hasExplicitInsuranceContext = matchTerms(text, insuranceContextTerms).length > 0;
@@ -662,6 +688,17 @@ function inferInsuranceForCareRoute(rule?: Rule) {
     "門診保險",
     "住院醫療 / VHIS-style coverage if hospital care may be needed",
   ];
+}
+
+function matchPediatricSameDaySignals(text: string) {
+  const pediatricMatches = matchTerms(text, pediatricTerms);
+  const symptomMatches = matchTerms(text, pediatricSameDaySymptomTerms);
+
+  if (pediatricMatches.length === 0 || symptomMatches.length === 0) {
+    return [];
+  }
+
+  return unique([...pediatricMatches, ...symptomMatches]);
 }
 
 function normalize(input: string) {
