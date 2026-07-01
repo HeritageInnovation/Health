@@ -93,7 +93,11 @@ export function UserMenu({
         </div>
       ) : null}
 
-      {authError ? <p className={styles.errorText}>{authError}</p> : null}
+      {authError ? (
+        <p className={styles.errorText} role="alert">
+          {authError}
+        </p>
+      ) : null}
 
       <div className={styles.userActions}>
         {isAnonymous ? (
