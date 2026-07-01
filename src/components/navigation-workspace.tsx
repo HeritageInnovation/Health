@@ -236,6 +236,47 @@ const heroCopy: Record<
   },
 };
 
+const resultCardCopy: Record<
+  InterfaceLanguage,
+  {
+    loading: string;
+    nextStepBadge: string;
+    nextStep: string;
+    departmentDirection: string;
+    possibleOptions: string;
+    insuranceCategories: string;
+    whatToPrepare: string;
+    followUpPrompts: string;
+    safetyReasoning: string;
+    detectedSignals: string;
+  }
+> = {
+  zh: {
+    loading: "正在分析… / Analyzing...",
+    nextStepBadge: "Next step",
+    nextStep: "下一步 / Next step",
+    departmentDirection: "科別方向 / Department direction",
+    possibleOptions: "可能相關 / Possible options",
+    insuranceCategories: "保險分類 / Insurance categories",
+    whatToPrepare: "準備清單 / What to prepare",
+    followUpPrompts: "下一步可回答 / Follow-up prompts",
+    safetyReasoning: "判斷依據 / Safety reasoning",
+    detectedSignals: "識別到的訊號 / Detected signals",
+  },
+  en: {
+    loading: "Analyzing... / 正在分析…",
+    nextStepBadge: "Next step",
+    nextStep: "Next step / 下一步",
+    departmentDirection: "Department direction / 科別方向",
+    possibleOptions: "Possible options / 可能相關",
+    insuranceCategories: "Insurance categories / 保險分類",
+    whatToPrepare: "What to prepare / 準備清單",
+    followUpPrompts: "Follow-up prompts / 下一步可回答",
+    safetyReasoning: "Safety reasoning / 判斷依據",
+    detectedSignals: "Detected signals / 識別到的訊號",
+  },
+};
+
 function applyCarePreference(result: Recommendation, carePreference: CarePreference): Recommendation {
   if (result.urgency.level === 1) {
     return result;
@@ -724,6 +765,7 @@ export function NavigationWorkspace() {
           <ResultCard
             result={result}
             isSubmitting={isSubmitting}
+            interfaceLanguage={interfaceLanguage}
             canSave={Boolean(user && saveHistory)}
             isSaved={Boolean(savedSessionId)}
             isSaving={isSavingMemory}
@@ -857,6 +899,7 @@ export function NavigationWorkspace() {
 function ResultCard({
   result,
   isSubmitting,
+  interfaceLanguage,
   canSave,
   isSaved,
   isSaving,
@@ -866,6 +909,7 @@ function ResultCard({
 }: {
   result: Recommendation | null;
   isSubmitting: boolean;
+  interfaceLanguage: InterfaceLanguage;
   canSave: boolean;
   isSaved: boolean;
   isSaving: boolean;
@@ -873,12 +917,14 @@ function ResultCard({
   onSave: () => void;
   onDecline: () => void;
 }) {
+  const copy = resultCardCopy[interfaceLanguage];
+
   if (isSubmitting) {
     return (
       <section className={styles.resultCard} aria-live="polite">
         <div className={styles.thinkingRow}>
           <Activity size={18} aria-hidden="true" />
-          <span>正在分析… / Analyzing...</span>
+          <span>{copy.loading}</span>
         </div>
       </section>
     );
@@ -900,20 +946,18 @@ function ResultCard({
           <p>{result.classification}</p>
           <h2>{result.urgency.label}</h2>
         </div>
-        <span>{isEmergency ? "999 / A&E" : "Next step"}</span>
+        <span>{isEmergency ? "999 / A&E" : copy.nextStepBadge}</span>
       </div>
 
       <p className={styles.resultSummary}>{result.urgency.summary}</p>
-      <ResultBlock icon={ArrowRight} title="下一步 / Next step" content={result.nextAction} />
-      <ResultBlock icon={Hospital} title="科別方向 / Department direction" content={result.careRoute} />
-      <ResultList title="可能相關 / Possible options" items={result.possibleDepartments} />
-      <ResultList title="保險分類 / Insurance categories" items={result.insuranceCategories} />
-      <ResultList title="準備清單 / What to prepare" items={result.decisionChecklist} />
-      {!isEmergency ? (
-        <ResultList title="下一步可回答 / Follow-up prompts" items={result.questions} />
-      ) : null}
-      <ResultList title="判斷依據 / Safety reasoning" items={result.audit} />
-      <ResultList title="識別到的訊號 / Detected signals" items={result.matchedSignals} />
+      <ResultBlock icon={ArrowRight} title={copy.nextStep} content={result.nextAction} />
+      <ResultBlock icon={Hospital} title={copy.departmentDirection} content={result.careRoute} />
+      <ResultList title={copy.possibleOptions} items={result.possibleDepartments} />
+      <ResultList title={copy.insuranceCategories} items={result.insuranceCategories} />
+      <ResultList title={copy.whatToPrepare} items={result.decisionChecklist} />
+      {!isEmergency ? <ResultList title={copy.followUpPrompts} items={result.questions} /> : null}
+      <ResultList title={copy.safetyReasoning} items={result.audit} />
+      <ResultList title={copy.detectedSignals} items={result.matchedSignals} />
 
       <div className={styles.escalationBox}>
         <AlertTriangle size={18} aria-hidden="true" />
