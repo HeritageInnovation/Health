@@ -337,6 +337,22 @@ const emergencyCallLabels: Record<InterfaceLanguage, string> = {
   en: "Call 999 or go to A&E for an emergency",
 };
 
+const intakeControlLabels: Record<
+  InterfaceLanguage,
+  { startVoice: string; stopVoice: string; submit: string }
+> = {
+  zh: {
+    startVoice: "開始語音輸入",
+    stopVoice: "停止語音輸入",
+    submit: "提交問題",
+  },
+  en: {
+    startVoice: "Start voice input",
+    stopVoice: "Stop voice input",
+    submit: "Submit question",
+  },
+};
+
 function applyCarePreference(result: Recommendation, carePreference: CarePreference): Recommendation {
   if (result.urgency.level === 1) {
     return result;
@@ -382,6 +398,7 @@ export function NavigationWorkspace() {
   const activeHeroCopy = heroCopy[interfaceLanguage];
   const activeReferenceCopy = referenceCopy[interfaceLanguage];
   const emergencyCallLabel = emergencyCallLabels[interfaceLanguage];
+  const intakeLabels = intakeControlLabels[interfaceLanguage];
   const avatarState = getDoctorAvatarState({
     result,
     isSubmitting,
@@ -764,7 +781,7 @@ export function NavigationWorkspace() {
               className={isRecording ? styles.micActive : styles.micButton}
               type="button"
               aria-pressed={isRecording}
-              aria-label={isRecording ? "停止語音輸入" : "開始語音輸入"}
+              aria-label={isRecording ? intakeLabels.stopVoice : intakeLabels.startVoice}
               onClick={() => setIsRecording((current) => !current)}
             >
               <Mic size={22} aria-hidden="true" />
@@ -772,7 +789,7 @@ export function NavigationWorkspace() {
             <button
               className={styles.sendButton}
               type="button"
-              aria-label="提交問題"
+              aria-label={intakeLabels.submit}
               disabled={isSubmitting}
               onClick={handleSubmit}
             >
