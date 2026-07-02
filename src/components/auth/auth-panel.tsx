@@ -58,6 +58,12 @@ export function AuthPanel({
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
   }, []);
 
+  function handleEmailChange(nextEmail: string) {
+    setEmail(nextEmail);
+    setStatus(null);
+    setError(null);
+  }
+
   function startAnonymous() {
     if (!supabase) {
       setError("Supabase 尚未設定。Supabase is not configured yet.");
@@ -245,7 +251,7 @@ export function AuthPanel({
           type="email"
           autoComplete="email"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => handleEmailChange(event.target.value)}
           placeholder="name@example.com"
         />
         <button
