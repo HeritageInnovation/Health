@@ -135,20 +135,75 @@ const featureChips = [
   { zh: "24/7 全天候支援", en: "24/7 Support", icon: Activity },
 ];
 
-const routeRows = [
-  ["急症室 / A&E", "胸痛、呼吸困難、中風徵兆、大量出血、自傷即時風險"],
-  ["普通科 / GP", "非緊急但持續症狀、初步檢查、轉介建議"],
-  ["相關專科 / Specialist", "按醫生評估及症狀範圍，再考慮眼科、皮膚科、兒科等"],
-];
+const routeRows: Record<InterfaceLanguage, string[][]> = {
+  zh: [
+    ["急症室 / A&E", "胸痛、呼吸困難、中風徵兆、大量出血、自傷即時風險"],
+    ["普通科 / GP", "非緊急但持續症狀、初步檢查、轉介建議"],
+    ["相關專科 / Specialist", "按醫生評估及症狀範圍，再考慮眼科、皮膚科、兒科等"],
+  ],
+  en: [
+    [
+      "A&E / 急症室",
+      "Chest pain, breathing difficulty, stroke signs, severe bleeding, or immediate self-harm risk.",
+    ],
+    ["GP / 普通科", "Non-urgent persistent symptoms, first assessment, and referral advice."],
+    [
+      "Specialist if referred / 相關專科",
+      "After doctor assessment, consider ophthalmology, dermatology, paediatrics, or other relevant specialties.",
+    ],
+  ],
+};
 
-const coverageRows = [
-  "住院醫療 / Hospital",
-  "門診 / Outpatient",
-  "危疾 / Critical illness",
-  "意外 / Accident",
-  "牙科 / Dental",
-  "旅遊 / Travel",
-];
+const coverageRows: Record<InterfaceLanguage, string[]> = {
+  zh: [
+    "住院醫療 / Hospital",
+    "門診 / Outpatient",
+    "危疾 / Critical illness",
+    "意外 / Accident",
+    "牙科 / Dental",
+    "旅遊 / Travel",
+  ],
+  en: [
+    "Hospital / 住院醫療",
+    "Outpatient / 門診",
+    "Critical illness / 危疾",
+    "Accident / 意外",
+    "Dental / 牙科",
+    "Travel / 旅遊",
+  ],
+};
+
+const referenceCopy: Record<
+  InterfaceLanguage,
+  {
+    sectionLabel: string;
+    careRoutingTitle: string;
+    careRoutingSubtitle: string;
+    coverageTitle: string;
+    coverageSubtitle: string;
+    safetyTitle: string;
+    safetySubtitle: string;
+  }
+> = {
+  zh: {
+    sectionLabel: "安全參考",
+    careRoutingTitle: "香港醫療路徑",
+    careRoutingSubtitle: "Hong Kong care routing",
+    coverageTitle: "保障分類",
+    coverageSubtitle: "Coverage categories",
+    safetyTitle: "安全邊界",
+    safetySubtitle: "Safety boundaries",
+  },
+  en: {
+    sectionLabel: "Safety references",
+    careRoutingTitle: "Hong Kong care routing",
+    careRoutingSubtitle: "香港醫療路徑",
+    coverageTitle: "Coverage categories",
+    coverageSubtitle: "保障分類",
+    safetyTitle: "Safety boundaries",
+    safetySubtitle: "安全邊界",
+  },
+};
 
 const carePreferenceCopy: Record<
   CarePreference,
@@ -325,6 +380,7 @@ export function NavigationWorkspace() {
   const activeCard = actionCards.find((card) => card.id === activeAction) ?? actionCards[0];
   const activeInputHeading = inputHeadingCopy[interfaceLanguage];
   const activeHeroCopy = heroCopy[interfaceLanguage];
+  const activeReferenceCopy = referenceCopy[interfaceLanguage];
   const emergencyCallLabel = emergencyCallLabels[interfaceLanguage];
   const avatarState = getDoctorAvatarState({
     result,
@@ -870,27 +926,27 @@ export function NavigationWorkspace() {
         </div>
       </section>
 
-      <section className={styles.referenceGrid} aria-label="Safety references">
+      <section className={styles.referenceGrid} aria-label={activeReferenceCopy.sectionLabel}>
         <ReferencePanel
           id="health-info"
           icon={Hospital}
-          title="香港醫療路徑"
-          subtitle="Hong Kong care routing"
-          rows={routeRows}
+          title={activeReferenceCopy.careRoutingTitle}
+          subtitle={activeReferenceCopy.careRoutingSubtitle}
+          rows={routeRows[interfaceLanguage]}
         />
         <ReferencePanel
           id="insurance-info"
           icon={ShieldCheck}
-          title="保障分類"
-          subtitle="Coverage categories"
-          tags={coverageRows}
+          title={activeReferenceCopy.coverageTitle}
+          subtitle={activeReferenceCopy.coverageSubtitle}
+          tags={coverageRows[interfaceLanguage]}
         />
         <div className={styles.referencePanel}>
           <div className={styles.sectionTitle}>
             <ClipboardCheck size={20} aria-hidden="true" />
             <div>
-              <h2>安全邊界</h2>
-              <p>Safety boundaries</p>
+              <h2>{activeReferenceCopy.safetyTitle}</h2>
+              <p>{activeReferenceCopy.safetySubtitle}</p>
             </div>
           </div>
           <p className={styles.referenceCopy}>{MEDICAL_SAFETY_DISCLAIMER}</p>
