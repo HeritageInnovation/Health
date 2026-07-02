@@ -61,6 +61,7 @@ const actionCards: Array<{
   titleZh: string;
   titleEn: string;
   bodyZh: string;
+  bodyEn: string;
   accent: "teal" | "blue" | "violet" | "amber";
   icon: LucideIcon;
 }> = [
@@ -70,6 +71,7 @@ const actionCards: Array<{
     titleZh: "症狀評估",
     titleEn: "Symptom Check",
     bodyZh: "評估症狀嚴重程度\n並提供初步建議",
+    bodyEn: "Assess symptom urgency\nand suggest first steps",
     accent: "teal",
     icon: Stethoscope,
   },
@@ -79,6 +81,7 @@ const actionCards: Array<{
     titleZh: "搵科別",
     titleEn: "Find Department",
     bodyZh: "根據你的情況\n推薦合適科別",
+    bodyEn: "Match your situation\nto a likely care route",
     accent: "blue",
     icon: Hospital,
   },
@@ -88,6 +91,7 @@ const actionCards: Array<{
     titleZh: "保險建議",
     titleEn: "Insurance Guidance",
     bodyZh: "了解保障範圍及\n索償流程建議",
+    bodyEn: "Understand coverage types\nand claims considerations",
     accent: "violet",
     icon: ShieldCheck,
   },
@@ -97,6 +101,7 @@ const actionCards: Array<{
     titleZh: "保單解讀",
     titleEn: "Policy & Claims",
     bodyZh: "整理條款、索償及\n不保事項問題",
+    bodyEn: "Review exclusions, waiting periods\nand claim steps",
     accent: "amber",
     icon: FileText,
   },
@@ -758,7 +763,7 @@ export function NavigationWorkspace() {
                 </span>
                 <strong>{interfaceLanguage === "zh" ? card.titleZh : card.titleEn}</strong>
                 <small>{interfaceLanguage === "zh" ? card.titleEn : card.titleZh}</small>
-                <span>{card.bodyZh}</span>
+                <span>{interfaceLanguage === "zh" ? card.bodyZh : card.bodyEn}</span>
                 <i aria-hidden="true">
                   <ArrowRight size={20} />
                 </i>
