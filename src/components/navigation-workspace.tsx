@@ -54,6 +54,12 @@ import styles from "./navigation-workspace.module.css";
 type ActionId = "symptom" | "department" | "insurance" | "policy";
 type CarePreference = "public" | "private";
 type InterfaceLanguage = "zh" | "en";
+type StoredPreferenceRow = {
+  preference_key: string;
+  preference_value: unknown;
+};
+
+const REMEMBERED_PREFERENCE_KEYS = ["preferred_language", "care_preference"];
 
 const actionCards: Array<{
   id: ActionId;
@@ -303,6 +309,30 @@ function uniqueList<T>(items: T[]) {
   return Array.from(new Set(items));
 }
 
+function getStoredPreferenceValue(rows: StoredPreferenceRow[], key: string) {
+  return rows.find((row) => row.preference_key === key)?.preference_value;
+}
+
+function getRememberedInterfaceLanguage(value: unknown): InterfaceLanguage | null {
+  if (value === "en") {
+    return "en";
+  }
+
+  if (value === "zh" || value === "zh-Hant") {
+    return "zh";
+  }
+
+  return null;
+}
+
+function getRememberedCarePreference(value: unknown): CarePreference | null {
+  if (value === "public" || value === "private") {
+    return value;
+  }
+
+  return null;
+}
+
 export function NavigationWorkspace() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -349,14 +379,42 @@ export function NavigationWorkspace() {
       }
 
       try {
-        const [nextProfile, rememberedSaveHistory] = await Promise.all([
-          getOrCreateProfile(nextUser, supabase),
-          getMemorySavePreference(nextUser.id, supabase),
-        ]);
+        const [nextProfile, rememberedSaveHistory, rememberedPreferencesResult] =
+          await Promise.all([
+            getOrCreateProfile(nextUser, supabase),
+            getMemorySavePreference(nextUser.id, supabase),
+            supabase
+              .from("user_preferences")
+              .select("preference_key, preference_value")
+              .eq("user_id", nextUser.id)
+              .in("preference_key", REMEMBERED_PREFERENCE_KEYS),
+          ]);
+
+        if (rememberedPreferencesResult.error) {
+          throw new Error(
+            `Could not load saved preferences: ${rememberedPreferencesResult.error.message}`,
+          );
+        }
 
         if (isMounted) {
+          const rememberedPreferences = (rememberedPreferencesResult.data ?? []) as StoredPreferenceRow[];
+          const rememberedLanguage = getRememberedInterfaceLanguage(
+            getStoredPreferenceValue(rememberedPreferences, "preferred_language"),
+          );
+          const rememberedCarePreference = getRememberedCarePreference(
+            getStoredPreferenceValue(rememberedPreferences, "care_preference"),
+          );
+
           setProfile(nextProfile);
           setSaveHistory(rememberedSaveHistory ?? false);
+
+          if (rememberedLanguage) {
+            setInterfaceLanguage(rememberedLanguage);
+          }
+
+          if (rememberedCarePreference) {
+            setCarePreference(rememberedCarePreference);
+          }
         }
       } catch (error) {
         if (isMounted) {
